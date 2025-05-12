@@ -1,25 +1,24 @@
 # MIT License-----
-#Copyright (c) 2021 Sabine Schilling
+# Copyright (c) 2021 Sabine Schilling
 
 # Plotting functions----
 
 # Testing for normality and visualization ----
 
-test_norm_vis = function(x, y_axis_hist = c(0, 0.04)) {
-  #store default graphical parameters------
-  oldparnormvis <- par(no.readonly = TRUE)   
-  on.exit(par(oldparnormvis))   
+test_norm_vis <- function(x, y_axis_hist = c(0, 0.04)) {
+  # store default graphical parameters------
+  oldparnormvis <- par(no.readonly = TRUE)
+  on.exit(par(oldparnormvis))
   par(mfrow = c(1, 2), oma = c(0, 0, 3, 0))
-  #Remove NA from x
+  # Remove NA from x
   x <- x[!is.na(x)]
-  n = length(x)
-  norm_dens = function(z) {
+  norm_dens <- function(z) {
     dnorm(z, mean(x), sd(x))
   }
 
-  ymax = max(norm_dens(x))
-  #Plot histogramm of raw data
-  otto = hist(
+  ymax <- max(norm_dens(x))
+  # Plot histogramm of raw data
+  otto <- hist(
     x,
     freq = FALSE,
     col = "grey",
@@ -31,17 +30,18 @@ test_norm_vis = function(x, y_axis_hist = c(0, 0.04)) {
     ),
     ylim = c(0, 1.2 * ymax)
   )
-  maxhist = max(otto$density)
-  #normal distribution with mean and sd of given distribution
+
+  # normal distribution with mean and sd of given distribution
   curve(norm_dens,
-        col = "red",
-        add = TRUE,
-        lwd = 2)
-  
-  
-  #par(new = TRUE) #the next high-level plotting command does not clean the frame before drawing
-  #as if it were on a new device.
-  lines(density(x),col = "blue")
+    col = "red",
+    add = TRUE,
+    lwd = 2
+  )
+
+
+  # par(new = TRUE) #the next high-level plotting command does not clean the frame before drawing
+  # as if it were on a new device.
+  lines(density(x), col = "blue")
 
   legend(
     "topright",
@@ -51,17 +51,17 @@ test_norm_vis = function(x, y_axis_hist = c(0, 0.04)) {
     col = c("red", "blue"),
     bty = "n"
   )
-  box() #frame around current plot
+  box() # frame around current plot
 
   qqnorm(x)
   qqline(x, col = "red", lwd = 2)
 
-  KS = ad.test(x)
-  p_KS = signif(KS$p.value, 2)
-  SH = shapiro.test(x)
-  p_SH = signif(SH$p.value, 2)
+  KS <- ad.test(x)
+  p_KS <- signif(KS$p.value, 2)
+  SH <- shapiro.test(x)
+  p_SH <- signif(SH$p.value, 2)
 
- mtext(
+  mtext(
     paste(
       "Shapiro-Wilk: p = ",
       p_SH,
@@ -71,108 +71,103 @@ test_norm_vis = function(x, y_axis_hist = c(0, 0.04)) {
     ),
     outer = TRUE
   )
-  my_list = list("Anderson-Darling" = KS, "Shapiro" = SH)
-  
+  my_list <- list("Anderson-Darling" = KS, "Shapiro" = SH)
+
   return(my_list)
 }
 
 
 
 ###### Two-Sample t-Test ###############################
-two_sample_tTest = function(samples,
-                            fact,
-                            alternative = c("two.sided", "less", "greater"),
-                            mu = 0,
-                            paired = FALSE,
-                            var.equal = FALSE,
-                            conf.level = 0.95,
-                            samplename = "",
-                            factorname = "")
-{
-  oldpar <- par(no.readonly = TRUE)   
-  on.exit(par(oldpar)) 
+two_sample_t_test <- function(samples,
+                              fact,
+                              alternative = c("two.sided", "less", "greater"),
+                              paired = FALSE,
+                              var.equal = FALSE,
+                              conf.level = conf.level,
+                              samplename = "",
+                              factorname = "") {
+  oldpar <- par(no.readonly = TRUE)
+  on.exit(par(oldpar))
   alternative <- match.arg(alternative)
 
-  if (!missing(mu) && (length(mu) != 1 || is.na(mu)))
-    return(warning("'mu' must be a single number"))
+
   if (!missing(conf.level) &&
-      (length(conf.level) != 1 || !is.finite(conf.level) ||
-       conf.level < 0 || conf.level > 1))
+    (length(conf.level) != 1 || !is.finite(conf.level) ||
+      conf.level < 0 || conf.level > 1)) {
     return(warning("'conf.level' must be a single number between 0 and 1"))
+  }
 
+  if (missing(conf.level)) {
+    conf.level <- 0.95
+  }
+  alpha <- 1 - conf.level
+  levels <- unique(sort(fact))
+  twosamples <- create_two_samples_vector(samples, fact)
+  x <- twosamples$sample1and2
+  x1 <- twosamples$sample1
+  x2 <- twosamples$sample2
+  # Check normality of both samples-----
+  p1 <- test_norm(twosamples$sample1)
+  p2 <- test_norm(twosamples$sample2)
 
+  # margins of y -axis
+  lower <- 0.2
+  upper <- 0.2
+  margins <- calc_min_max_of_y_axis(x, lower, upper)
+  mi <- margins[[1]]
+  ma <- margins[[2]]
 
-  alpha = 1 - conf.level
-  levels = unique(sort(fact))
-
-  twosamples = create_two_samples_vector(samples, fact)
-  x = twosamples$sample1and2
-  x1 = twosamples$sample1
-  x2 = twosamples$sample2
-
-  #Check normality of both samples-----
-  p1 = test_norm(twosamples$sample1)
-  p2 = test_norm(twosamples$sample2)
-
-  #margins of y -axis
-  lower = 0.05
-  upper = 0.1
-  margins = calc_min_max_of_y_axis(x, lower, upper)
-  mi = margins[[1]]
-  ma = margins[[2]]
-
-  x = cbind(x, factor(c(rep(1, length(
+  x <- cbind(x, factor(c(rep(1, length(
     x1
   )), rep(2, length(
     x2
   )))))
 
-
-  par(oma = c(0, 0, 3, 0))
-  b = boxplot(
+  b <- boxplot(
     samples ~ fact,
     lwd = 0.5,
     xlab = factorname,
     ylab = samplename,
-    ylim = c(mi, ma),
+    ylim = c(mi - 2, ma),
     varwidth = T,
     col = colorscheme(1)
   )
+
 
   stripchart(
     samples ~ fact,
     vertical = TRUE,
     xlim = c(0, 3),
     ylim = c(mi, ma),
-    #col = c("grey70", "grey80"),
+    # col = c("grey70", "grey80"),
     col = colorscheme(2),
     axes = FALSE,
     method = "jitter",
     add = TRUE
   )
 
-  axis(side = 2)
-  axis(side = 1,
-       at = c(1, 2),
-       labels = levels)
-  box()
+
 
   points(1,
-         mean(x1),
-         col = 2,
-         pch = 1,
-         lwd = 3)
+    mean(x1),
+    col = 2,
+    pch = 1,
+    lwd = 3
+  )
   points(2,
-         mean(x2),
-         col = 2,
-         pch = 1,
-         lwd = 3)
+    mean(x2),
+    col = 2,
+    pch = 1,
+    lwd = 3
+  )
 
-  alpha_c = 1 - sqrt(1 - alpha)
-  #two tests alpha<-0.025, corrects for pairwise testing by increasing the confidence interval from e.g. 95 % to 97.5 %
-  #corected confidence intervals taking intou co
-  correction1 = qt(1 - 0.5 * alpha_c, length(x1) - 1) * sd(x1) / sqrt(length(x1))
-  correction2 = qt(1 - 0.5 * alpha_c, length(x2) - 1) * sd(x2) / sqrt(length(x2))
+  # alpha_sidak = 1 - sqrt(1 - alpha)
+
+  alpha_sidak <- alpha
+
+  correction1 <- qt(1 - 0.5 * alpha_sidak, length(x1) - 1) * sd(x1) / sqrt(length(x1))
+  correction2 <- qt(1 - 0.5 * alpha_sidak, length(x2) - 1) * sd(x2) / sqrt(length(x2))
 
   arrows(
     1,
@@ -181,12 +176,13 @@ two_sample_tTest = function(samples,
     mean(x1, na.rm = T) - correction1,
     angle = 90,
     code = 3,
-    #halbes Konfidenzintervall
+    # halbes Konfidenzintervall
     col = 2,
     lty = 1,
     lwd = 2,
     length = 0.1
   )
+
   arrows(
     2,
     mean(x2) + correction2,
@@ -200,20 +196,9 @@ two_sample_tTest = function(samples,
     length = 0.1
   )
 
-  abline(
-    h = mean(x1, na.rm = T) + correction1,
-    col = "grey30",
-    lty = 2,
-    lwd = 1
-  )
-  abline(
-    h = mean(x1, na.rm = T) - correction1,
-    col = "grey30",
-    lty = 2,
-    lwd = 1
-  )
+  # Sample sizes above box plot
   text(1:length(b$n), c(ma, ma), paste("N=", b$n))
-  t = t.test(
+  t <- t.test(
     x1,
     x2,
     alternative = alternative,
@@ -222,117 +207,160 @@ two_sample_tTest = function(samples,
     var.equal = FALSE,
     na.action = na.omit
   )
-  p_value = t$p.value
-  p_value = signif(p_value, 3)
-
-  if (alternative == "two.sided") {
-    ah = "equals"
-  } else{
-    ah = alternative
-  }
-  compare = side_of_nh(alternative)
-  mtext(
-    paste(
-      t$method,
-      "p value = ",
-      p_value,
-      "null hypothesis:",
-      "\n mean",
-      samplename,
-      "of",
-      factorname,
-      unique(fact)[1],
-      compare,
-      "mean",
-      samplename,
-      "of",
-      factorname,
-      unique(fact)[2]
-    )
+  # Legend
+  legend(
+    "bottomleft",
+    inset = 0.05,
+    horiz = F,
+    c(paste("mean with", conf.level * 100, "% conf. intervall ")),
+    col = c(colors()[552]),
+    bty = "n",
+    lwd = 3
   )
+
+  p_value <- t$p.value
+  p_value <- signif(p_value, 2)
+
+  # Title general generation
+  if (alternative == "two.sided") {
+    ah <- "equals"
+  } else {
+    ah <- alternative
+  }
+  compare <- side_of_nh(alternative)
+
+
+
+
+  mean_or_median <- "population mean"
+  comparepvalue <- calculate_comparepvalue(p_value, conf.level)
+
+  two_sample_title <-
+    paste(
+      t$method, ", alpha =", 1 - conf.level,
+      "\n Null hypothesis: ",
+      mean_or_median, " ",
+      samplename,
+      " of ",
+      factorname, " \"",
+      unique(sort(fact))[1], "\" ",
+      compare, " ",
+      mean_or_median, " ",
+      samplename,
+      " of ",
+      factorname, " \"",
+      unique(sort(fact))[2], "\" ",
+      "\n p = ",
+      p_value, ", p ", comparepvalue, " ~ alpha ~ ",
+      sep = ""
+    )
+
+
+
+
+  mtext(two_sample_title)
+
   my_list <-
     list(
       "dependent variable (response)" = samplename,
-      "indepedent variables (parameters)" =  unique(fact),
+      "independent variables (features)" = unique(fact),
       "t-test-statistics" = t,
       "Shapiro-Wilk-test_sample1" = p1,
       "Shapiro-Wilk-test_sample2" = p2
     )
-  
-  return(my_list)
 
+  return(my_list)
 }
 
 
 # Two-Sample Wilcoxon-Test  ###############################
-#One function with flags for greater, less, two sided and notch
-two_sample_WilcoxonTest = function(samples,
-                                   fact,
-                                   alternative = c("two.sided", "less", "greater"),
-                                   conf.level = 0.95,
-                                   notchf = F,
-                                   samplename = "",
-                                   factorname = "",
-                                   cex = 1) {
- 
-  oldparwilcox <- par(no.readonly = TRUE) #make a copy of current values
- on.exit(par(oldparwilcox)) 
-  
-  alternative <- match.arg(alternative)
-  #Error handling ----
-  if (!((length(conf.level) == 1L) && is.finite(conf.level) &&
-        (conf.level > 0) && (conf.level < 1)))
-    return(warning("'conf.level' must be a single number between 0 and 1"))
+# One function with flags for greater, less, two sided and notch
+two_sample_wilcoxon_test <- function(samples,
+                                     fact,
+                                     alternative = c("two.sided", "less", "greater"),
+                                     conf.level = conf.level,
+                                     notchf = FALSE,
+                                     samplename = "",
+                                     factorname = "",
+                                     cex = 1) {
+  oldparwilcox <- par(no.readonly = TRUE) # make a copy of current values
+  on.exit(par(oldparwilcox))
 
-  if (!is.numeric(samples))
-    return(warning("'samples' must be numeric"))
-  if (!is.null(fact)) {
-    if (!is.factor(fact))
-      return(warning("'fact' must be factorial"))
+  alternative <- match.arg(alternative)
+  # Error handling ----
+
+
+  if (missing(conf.level)) {
+    conf.level <- 0.95
   }
 
-  #Store default graphical parameter
-  
-  alpha = 1 - conf.level
+  if (missing(notchf)) {
+    notchf <- FALSE
+  }
 
-  #Define color palette
-  colortuple2 = colorscheme(2)
+  if (!((length(conf.level) == 1L) && is.finite(conf.level) &&
+    (conf.level > 0) && (conf.level < 1))) {
+    return(warning("'conf.level' must be a single number between 0 and 1"))
+  }
+
+  if (!is.numeric(samples)) {
+    return(warning("'samples' must be numeric"))
+  }
+  if (!is.null(fact)) {
+    if (!is.factor(fact)) {
+      return(warning("'fact' must be factorial"))
+    }
+  }
+
+  # Store default graphical parameter
+  # Define color palette
+  colortuple2 <- colorscheme(2)
+
+
+
+
+
   # Create to numeric vectors
-  twosamples = create_two_samples_vector(samples, fact)
-  x = twosamples$sample1and2
-  x1 = twosamples$sample1
-  x2 = twosamples$sample2
+  twosamples <- create_two_samples_vector(samples, fact)
+  x <- twosamples$sample1and2
+  x1 <- twosamples$sample1
+  x2 <- twosamples$sample2
 
-  upper = 0.2
-  lower = 0.05
-  res = calc_min_max_of_y_axis(x, upper, lower)
-  mi = res[[1]]
-  ma = res[[2]]
+  upper <- 0.2
+  lower <- 0.05
+  res <- calc_min_max_of_y_axis(x, upper, lower)
+  mi <- res[[1]]
+  ma <- res[[2]]
 
-  x = cbind(x,
-            factor(c(rep(1, length(
-              x1
-            )),
-            rep(2, length(
-              x2
-            )))))
+  x <- cbind(
+    x,
+    factor(c(
+      rep(1, length(
+        x1
+      )),
+      rep(2, length(
+        x2
+      ))
+    ))
+  )
 
-  b <- boxplot(samples ~ fact, plot = 0) #holds  the counts
+  par(oma = c(0, 0, 2, 0)) # outer margin above: 2 lines..
+  # par(mar = c(8,4,4,2) + 0.1) #increse margin of labels below
 
-  par(oma = c(0, 0, 3, 0)) #links unten,...
+  b <- boxplot(samples ~ fact, plot = 0) # holds  the counts
+
 
 
   stripchart(
     samples ~ fact,
     vertical = TRUE,
     xlim = c(0, 3),
-    #ylim = c(mi, ma),
+    # ylim = c(mi, ma),
     method = "jitter",
     col = colorscheme(2),
     ylim = c(0, ma),
     ylab = samplename,
     xlab = factorname
-
   )
   boxplot(
     samples ~ fact,
@@ -342,86 +370,105 @@ two_sample_WilcoxonTest = function(samples,
     ylim = c(0, ma),
     add = T
   )
-  #text(1:length(b$n), b$stats[5,]+1, paste("n=", b$n))
+  # text(1:length(b$n), b$stats[5,]+1, paste("n=", b$n))
   text(1:length(b$n), c(ma, ma), paste("N =", b$n))
-  t = wilcox.test(samples ~ fact, alternative = alternative, na.action = na.omit)
-  p_value = t$p.value
-  #p_value = signif(p_value,5)
-  p_value = formatC(signif(p_value, digits = 2))
-
-  compare = side_of_nh(alternative)
-  if (factorname == "match")
-  {
-    prefix = "of matched"
-  } else{
-    prefix = character()
+  t <- wilcox.test(samples ~ fact, alternative = alternative, na.action = na.omit)
+  p_value <- t$p.value
+  # p_value = signif(p_value,5)
+  p_value <- formatC(signif(p_value, digits = 2))
+  compare <- side_of_nh(alternative)
+  if (factorname == "match") {
+    prefix <- "of matched"
+  } else {
+    prefix <- character()
   }
-  mtext(
+
+  # Title general generation
+  if (alternative == "two.sided") {
+    ah <- "equals"
+  } else {
+    ah <- alternative
+  }
+  compare <- side_of_nh(alternative)
+
+
+
+
+  mean_or_median <- "population median"
+  comparepvalue <- calculate_comparepvalue(p_value, conf.level)
+
+  two_sample_title <-
     paste(
-      t$method,
-      "p=value = ",
-      p_value,
-      " null hypothesis:
-      \n median",
+      t$method, ", alpha = ", 1 - conf.level,
+      "\n Null hypothesis: ",
+      mean_or_median, " ",
       samplename,
-      "of",
-      prefix,
-      unique(fact)[1],
-      compare,
-      "median",
+      " of ",
+      factorname, " ",
+      unique(sort(fact))[1], " ",
+      compare, " ",
+      mean_or_median, " ",
       samplename,
-      prefix,
-      unique(fact)[2]
-    ) ,
-    cex = cex,
-    outer = TRUE
-  )
+      " of ",
+      factorname, " ",
+      unique(sort(fact))[2],
+      "\n p = ",
+      p_value, ", p ", comparepvalue, " alpha",
+      sep = ""
+    )
+
+
+
+
+  mtext(two_sample_title)
+
+
 
   my_list <-
     list(
       "dependent variable (response)" = samplename,
-      "indepedent variables (parameters)" =  unique(fact),
+      "indepedent variables (parameters)" = unique(fact),
       "statsWilcoxon" = t,
       "statsBoxplot" = b
     )
-  
-   return(my_list)
 
-
+  return(my_list)
 }
 
 # Two-Sample F-Test ###############################
-#subtract means; two lines according to variances.
-two_sample_FTest = function(samples,
-                            fact,
-                            conf.int = 0.95,
-                            alternative = "two.sided") {
+# subtract means; two lines according to variances.
+two_sample_FTest <- function(samples,
+                             fact,
+                             conf.int = conf.int,
+                             alternative = "two.sided") {
   # if (missing(conf.int)) conf.int = 0.95
   #  if (missing(alternative)) alternative = "two.sided"
-  #Store default graphical parameter
-  oldparftest <- par(no.readonly = TRUE)   
-  on.exit(par(oldparftest)) 
-  
-  
-  alpha = 1 - confint
-  levels = unique(sort(fact))
+  # Store default graphical parameter
+  oldparftest <- par(no.readonly = TRUE)
+  on.exit(par(oldparftest))
+  if (missing(conf.int)) {
+    conf.int <- 0.95
+  }
 
-  x1 = samples[fact == levels[1]]
-  x2 = samples[fact == levels[2]]
+  alpha <- 1 - conf.int
+  levels <- unique(sort(fact))
 
-  x1 = x1 - mean(x1, na.rm = T)
+  x1 <- samples[fact == levels[1]]
+  x2 <- samples[fact == levels[2]]
 
-  x2 = x2 - mean(x2)
+  x1 <- x1 - mean(x1, na.rm = T)
+
+  x2 <- x2 - mean(x2)
 
 
-  x = c(x1, x2)
-  spread = max(x) - min(x)
-  spread = max(spread, var(x1), var(x2))
+  x <- c(x1, x2)
+  spread <- max(x) - min(x)
+  spread <- max(spread, var(x1), var(x2))
 
-  mi = min(x) - 0.3 * spread
-  ma = max(x) + 0.3 * spread
+  mi <- min(x) - 0.3 * spread
+  ma <- max(x) + 0.3 * spread
 
-  x = cbind(x, factor(c(rep(1, length(
+  x <- cbind(x, factor(c(rep(1, length(
     x1
   )), rep(2, length(
     x2
@@ -440,9 +487,11 @@ two_sample_FTest = function(samples,
   )
 
   axis(side = 2)
-  axis(side = 1,
-       at = c(1, 2),
-       labels = levels)
+  axis(
+    side = 1,
+    at = c(1, 2),
+    labels = levels
+  )
   box()
 
   lines(
@@ -466,9 +515,9 @@ two_sample_FTest = function(samples,
     lwd = 2
   )
 
-  t = var.test(x1, x2, alternative = alternative)
-  p_value = t$p.value
-  p_value = signif(p_value, 3)
+  t <- var.test(x1, x2, alternative = alternative)
+  p_value <- t$p.value
+  p_value <- signif(p_value, 3)
 
   mtext(
     paste(
@@ -481,93 +530,90 @@ two_sample_FTest = function(samples,
     ),
     outer = TRUE
   )
-  
 }
 
 
 
-#chi squared Test ----
+# chi squared Test ----
 
 
 # vis_chi_squared_test: implemented in vis_samples_fact -----
-vis_chi_squared_test = function(samples,
-                                fact,
-                                samplename,
-                                factorname,
-                                cex = 1) {
- 
-  oldparchi <- par(no.readonly = TRUE)   
-  on.exit(par(oldparchi)) 
-  
-  colortuple = colorscheme(1)
-  ColorPalette = colorscheme(3)
-  if (missing(samplename))
-    samplename = character()
-  if (missing(factorname))
-    factorname = character()
+vis_chi_squared_test <- function(samples,
+                                 fact,
+                                 samplename,
+                                 factorname,
+                                 cex = 1) {
+  oldparchi <- par(no.readonly = TRUE)
+  on.exit(par(oldparchi))
 
-  counts = makeTable(samples, fact, samplename, factorname)
-  check_assumptions_chi = check_assumptions_count_data(samples, fact)
+  colortuple <- colorscheme(1)
+  ColorPalette <- colorscheme(3)
+  if (missing(samplename)) {
+    samplename <- character()
+  }
+  if (missing(factorname)) {
+    factorname <- character()
+  }
+
+  counts <- makeTable(samples, fact, samplename, factorname)
+  # check for minimal size of 2x2
+  check_assumptions_chi <- check_assumptions_count_data(samples, fact)
 
   if (check_assumptions_chi == FALSE) {
-    fisher_chi = counts
+    fisher_chi <- counts
     return(fisher_chi)
-  } else{
-    row_sum = rowSums(counts)
-    col_sum = colSums(counts)
-    count_labels = dimnames(counts)[2]
-    count_labels = as.character(unlist(count_labels))
+  } else {
+    row_sum <- rowSums(counts)
+    col_sum <- colSums(counts)
+    count_labels <- dimnames(counts)[2]
+    count_labels <- as.character(unlist(count_labels))
 
-    category_names = dimnames(counts)[1]
-    category_names = as.character(unlist(category_names))
+    category_names <- dimnames(counts)[1]
+    category_names <- as.character(unlist(category_names))
 
-    norm_counts = (counts / row_sum) * 100 #100 %percentage in each group
-    max_val_y = max(norm_counts, na.rm = T)
-    #col_vec_browser=c(colortuple,rainbow(nrow(counts)-2, s = 0.5))
-    if (nrow(counts) < (length(ColorPalette) + 2))
-    {
-      col_vec_browser = c(colortuple, head(ColorPalette, n = nrow(counts) - 2))
-    } else{
-      col_vec_browser = c(colortuple, rainbow(nrow(counts) - 2, s = 0.4,alpha=1))
+    norm_counts <- (counts / row_sum) * 100 # 100 %percentage in each group
+    max_val_y <- max(norm_counts, na.rm = T)
+    # col_vec_browser=c(colortuple,rainbow(nrow(counts)-2, s = 0.5))
+    if (nrow(counts) < (length(ColorPalette) + 2)) {
+      col_vec_browser <- c(colortuple, head(ColorPalette, n = nrow(counts) - 2))
+    } else {
+      col_vec_browser <- c(colortuple, rainbow(nrow(counts) - 2, s = 0.4, alpha = 1))
     }
-    # x_val = seq(-0.5, ncol(counts) + 0.5, 1)
-    #  y_val = c(0, norm_counts[1, ], 0)
 
 
-    #creates new plot for barplot
-    
-    par(mfrow = c(1, 1),oma = c(0, 0, 3, 0)) 
-    
-    maxlabels = length(levels(samples))
+    # creates new plot for barplot
+
+    par(mfrow = c(1, 1), oma = c(0, 0, 3, 0))
+
+    maxlabels <- length(levels(samples))
     if (maxlabels > 7 |
-        grepl("basis", samplename) | grepl("source", samplename)
-        | grepl("basis", factorname) | grepl("source", factorname)
-        | grepl("genotyped", samplename) |
-        grepl("genotyped", factorname))
-    {
-      labelsize = 0.3 * cex
+      grepl("basis", samplename) | grepl("source", samplename) |
+      grepl("basis", factorname) | grepl("source", factorname) |
+      grepl("genotyped", samplename) |
+      grepl("genotyped", factorname)) {
+      labelsize <- 0.3 * cex
     } else if (maxlabels > 5) {
-      labelsize = 0.7 * cex
-    } else{
-      labelsize = cex
+      labelsize <- 0.7 * cex
+    } else {
+      labelsize <- cex
     }
 
 
-    fisher_chi = fisher_chi(counts) #checks if Cochran requirements for chi2 are met, if not: only fisher exact test allowed
+    fisher_chi <- fisher_chi(counts) # checks if Cochran requirements for chi2 are met, if not: only fisher exact test allowed
 
-    titletext = paste(fisher_chi$method,
-                      ": p-value =",
-                      signif(fisher_chi$p.value, 3),
-                      sep = "")
-    if (nrow(counts) > 3)
-    {
-      ma = max(1.3 * max_val_y)
-      legendsize = 0.7 * cex
-    } else{
-      ma = ma = max(1.1 * max_val_y)
-      legendsize = cex
+    titletext <- paste(fisher_chi$method,
+      ": p-value =",
+      signif(fisher_chi$p.value, 3),
+      sep = ""
+    )
+    if (nrow(counts) > 3) {
+      ma <- max(1.3 * max_val_y)
+      legendsize <- 0.7 * cex
+    } else {
+      ma <- ma <- max(1.1 * max_val_y)
+      legendsize <- cex
     }
-    
+
     barplot(
       norm_counts,
       names.arg = count_labels,
@@ -580,74 +626,94 @@ vis_chi_squared_test = function(samples,
       xlab = samplename,
       beside = TRUE,
       cex.axis = 1,
-      cex.names = labelsize #size of labels of barplot
-
+      cex.names = labelsize # size of labels of barplot
     )
 
     box()
     mtext(titletext)
-    category_names = as.character(category_names)
-   legend(
+    category_names <- as.character(category_names)
+    legend(
       "topright",
       inset = 0.05,
       category_names,
       col = col_vec_browser,
-      bty = 'n',
+      bty = "n",
       lwd = 2,
       cex = legendsize
     )
-    
+
     return(fisher_chi)
   }
 }
 
 ###### Visualize ANOVA ###############################
-## performs ANOVA, oneway test and post-hoc t.test
-vis_anova = function(samples,
-                     fact,
-                     conf.level = 0.95,
-                     samplename = "",
-                     factorname = "",
-                     cex = 1) {
-  
-  oldparanova <- par(no.readonly = TRUE)   
-  on.exit(par(oldparanova)) 
-  
-  alpha = 1 - conf.level
-  samples3 = na.omit(samples)
-  fact <- subset(fact,!is.na(samples))
-  samples = samples3
-  n_classes = length(unique(fact))
+## performs ANOVA or  oneway test and corresponding post hoc tests
+vis_anova <- function(samples,
+                      fact,
+                      conf.level = conf.level,
+                      samplename = "",
+                      factorname = "",
+                      cex = 1) {
+  if (missing(conf.level)) {
+    conf.level <- 0.95
+  }
 
-  sdna = function(x)
-  {
+  oldparanova <- par(no.readonly = TRUE)
+  on.exit(par(oldparanova))
+
+  alpha <- 1 - conf.level
+
+  samples3 <- na.omit(samples)
+  fact <- subset(fact, !is.na(samples))
+  samples <- samples3
+  n_classes <- length(unique(fact))
+  # https://en.wikipedia.org/wiki/Bonferroni_correction
+  number_of_pairwise_comparisons <- n_classes * (n_classes - 1) / 2
+  alpha_sidak <- 1 - conf.level^(1 / number_of_pairwise_comparisons) # Sidak correction, https://en.wikipedia.org/wiki/%C5%A0id%C3%A1k_correction
+  # alpha_sidak=alpha #do not apply sidak correction
+  sdna <- function(x) {
     sd(x, na.rm = T)
   }
-  meanna = function(x)
-  {
+  meanna <- function(x) {
     mean(x, na.rm = T)
   }
 
-  s = tapply(samples, fact, sdna)
-  m = tapply(samples, fact, meanna)
+  s <- tapply(samples, fact, sdna)
+  m <- tapply(samples, fact, meanna)
 
-  samples_per_class = integer(n_classes)
+  samples_per_class <- integer(n_classes)
   for (i in 1:n_classes) {
-    samples_per_class[i] = sum(fact == unique(fact)[i])
+    samples_per_class[i] <- sum(fact == unique(fact)[i])
+  }
+  # tests
+  an <- aov(samples ~ fact)
+  summaryAnova <- summary(an)
+  oneway <- oneway.test(samples ~ fact)
+  # check for homogenity
+  bartlett_test <- bartlett.test(samples ~ fact)
+  p_bart <- bartlett_test$p.value
+
+  if (p_bart > 1 - conf.level) {
+    p_aov <- summaryAnova[[1]][["Pr(>F)"]][1]
+    label_aov <- "ANOVA: "
+
+    summarystat <- summaryAnova
+  } else {
+    p_aov <- oneway$p.value
+    label_aov <- "One-way test: "
+    summarystat <- oneway
   }
 
-  an = aov(samples ~ fact)
-  summaryAnova = summary(an)
 
-  oneway = oneway.test(samples ~ fact)
 
-  maximum = max(samples, na.rm = T)
-  minimum = min(samples, na.rm = T)
 
-  spread = maximum - minimum
+  maximum <- max(samples, na.rm = T)
+  minimum <- min(samples, na.rm = T)
 
-  mi = minimum - 0.1 * spread
-  ma = maximum + 0.4 * spread
+  spread <- maximum - minimum
+
+  mi <- minimum - spread
+  ma <- maximum + 1.2 * spread
   par(mfrow = c(1, 1), oma = c(0, 0, 3, 0))
 
   stripchart(
@@ -661,15 +727,20 @@ vis_anova = function(samples,
     las = 2
   )
 
+
+
   # sd:
   for (i in 1:n_classes) {
+    sn <- qt(1 - alpha_sidak / 2, samples_per_class[i] - 1) * s[[i]] / sqrt(samples_per_class[i])
     lines(
       x = c(i - 0.2, i - 0.2),
-      y = c(m[[i]] - s[[i]], m[[i]] + s[[i]]),
+      # y = c(m[[i]] - s[[i]], m[[i]] + s[[i]]),
+      y = c(m[[i]] - sn, m[[i]] + sn),
       col = colors()[131],
       lwd = 5
     )
   }
+
 
   for (i in 1:n_classes) {
     lines(
@@ -680,9 +751,11 @@ vis_anova = function(samples,
     )
     arrows(
       i,
-      m[[i]] + qt(1 - 0.025, samples_per_class[i] - 1) * s[[i]] / sqrt(samples_per_class[i]),
+      m[[i]] + qt(1 - alpha / 2, samples_per_class[i] - 1) * s[[i]] / sqrt(samples_per_class[i]),
+      # m[[i]] + qt(1 - alpha_sidak/2, samples_per_class[i] - 1) * s[[i]] / sqrt(samples_per_class[i]),
       i,
-      m[[i]] - qt(1 - 0.025, samples_per_class[i] - 1) * s[[i]] / sqrt(samples_per_class[i]),
+      m[[i]] - qt(1 - alpha / 2, samples_per_class[i] - 1) * s[[i]] / sqrt(samples_per_class[i]),
+      # m[[i]] - qt(1 - alpha_sidak/2, samples_per_class[i] - 1) * s[[i]] / sqrt(samples_per_class[i]),
       angle = 90,
       code = 3,
       col = colors()[552],
@@ -690,189 +763,103 @@ vis_anova = function(samples,
       lwd = 2,
       length = 0.1
     )
-
   }
 
-  tuk = TukeyHSD(an)
+  tuk <- TukeyHSD(an, conf.level = conf.level)
 
-  s = multcompLetters(tuk[[1]][, 4], threshold = alpha)
+  s <- multcompLetters(tuk[[1]][, 4], threshold = alpha)
 
-  ord = c()
+  ord <- c()
 
-  v = attributes(s$Letters)$names
-  f_levels = sort(unique(fact))
+  v <- attributes(s$Letters)$names
+  f_levels <- sort(unique(fact))
   for (i in 1:n_classes) {
-    ord[i] = which(v == f_levels[i])
+    ord[i] <- which(v == f_levels[i])
   }
 
   text(seq(1:n_classes + 1),
-       mi,
-       s$Letters[ord],
-       col = colors()[81],
-       lwd = 2)
-
-  mtext(paste(
-    "ANOVA: P = ",
-    signif(summaryAnova[[1]][["Pr(>F)"]][[1]], 3),
-    "\n",
-    "OneWay: P = ",
-    signif(oneway$p.value, 3)
-  ),
-  outer = TRUE)
-
-  legend(
-    "top",
-    inset = 0.05,
-    horiz = F,
-    c("mean +- sd ", "mean with 95% conf. intervall"),
-    col = c(colors()[131], colors()[552]),
-    bty = 'n',
-    lwd = 3
+    mi,
+    s$Letters[ord],
+    col = colors()[81],
+    lwd = 2
   )
-  my_list <-
-    list(
-      "ANOVA" = summaryAnova,
-      "oneway_test" = oneway,
-      "adjusted_p_values_t_test" = tuk,
-      "conf.level" = conf.level
-    )
-  
-   return(my_list)
-}
 
-
-## Visualize  ANOVA assumptions----
-
-###  Header vis_anova_asumptions -----
-
-#' Testing ANOVA assumptions
-#'
-#' \code{vis_anova_assumptions} checks for normality of the standardised residuals of the anova both graphically by qq-plots as well as performing
-#'    the Shapiro-Wilk-test \code{shapiro.test} and the Anderson-Darling-Test \code{ad.test}.
-#'    \code{aov} further tests the homoscedacity of each factor level in \code{fact} with the \code{bartlett.test}.
-#'
-#' @param samples vector containing dependent variable, datatype numeric
-#' @param fact vector containing independent variable, datatype factor
-#' @param conf.level confidence level, 0.95=default
-#' @param samplename name of sample used in graphical output, dataype character , ""=default
-#' @param factorname name of sample used in graphical output, dataype character, ""=default
-#' @param cex number indicating the amount by which plotting text and symbols should be scaled relative to the default. 1=default, 1.5 is 50\% larger, 0.5 is 50\% smaller, etc.
-#'
-#' @return my_list: list containing the test statistics of the anova
-#' \code{aov(samples~fact)},\code{bartlett.test(samples~fact)} and the tests of normality of the standardized residuals of aov, \code{ks_test} and \code{shapiro_test}
-#' @examples
-#'ToothGrowth$dose=as.factor(ToothGrowth$dose)
-#'vis_anova_assumptions(ToothGrowth$len, ToothGrowth$dose)
-#'
-#'vis_anova_assumptions(ToothGrowth$len, ToothGrowth$supp)
-#'vis_anova_assumptions(iris$Petal.Width,iris$Species)
-
-#' @export vis_anova_assumptions
-
-vis_anova_assumptions = function(samples,
-                                 fact,
-                                 conf.level = 0.95,
-                                 samplename = "",
-                                 factorname = "",
-                                 cex = 1) {
-  
-  oldparanovassum <- par(no.readonly = TRUE)   
-  on.exit(par(oldparanovassum)) 
-  samples3 = na.omit(samples)
-  fact <- subset(fact,!is.na(samples))
-  samples = samples3
-  anova = aov(samples ~ fact)
-  summary_anova = summary(anova)
-  par(mfrow = c(1, 2), oma = c(0, 0, 3, 0))
-  plot(anova$fitted, rstandard(anova), main = "std. Residuals vs. Fitted")
-  abline(h = 0, col = 1, lwd = 2)
-  qqnorm(rstandard(anova))
-  qqline(rstandard(anova), col = "red", lwd = 2)
-  par(mfrow = c(1, 1))
-  #check for normality of standardized residuals
-  if (length(anova)>7){
-  ad_test = ad.test(rstandard(anova))
-  p_AD = signif(ad_test$p.value, 3)}
-  else{
-  ad_test="Anderson-Darling test requires sample size of at lest 7."  
-  p_AD=NA
-  }
-  shapiro_test = shapiro.test(rstandard(anova))
-  p_SH = shapiro_test$p.value
-  bartlett_test = bartlett.test(samples ~ fact)
-  p_bart = bartlett_test$p.value
   mtext(
     paste(
-      "Check for homogeneity of variances:Bartlett Test, p = ",
-      signif(p_bart, 2),
-      "\n Check for normality of standardized residuals:\n Shapiro-Wilk: p = ",
-      signif(p_SH, 2),
-      "\n Anderson-Darling: p = ",
-      signif(p_AD, 2)
+      label_aov, "p=",
+      signif(p_aov, 2)
     ),
     outer = TRUE
   )
 
-
-
+  legend(
+    "topleft",
+    inset = 0.05,
+    horiz = F,
+    c(paste("mean with", round((1 - alpha_sidak) * 100, 1), "% conf. intervall, Sidak corrected"), paste("mean with", conf.level * 100, "% conf. intervall ")),
+    col = c(colors()[131], colors()[552]),
+    bty = "n",
+    lwd = 3
+  )
   my_list <-
     list(
-      "shapiro_test" = shapiro_test,
-      "ad_test" = ad_test,
-      "summary_anova" = summary_anova,
-      "bartlett_test"=bartlett_test
+      "summary statistics_anova" = summaryAnova,
+      "summary statistics_oneway" = oneway,
+      "adjusted_p_values_tuk" = tuk,
+      "conf.level" = conf.level
     )
 
-   return(my_list)
+  return(my_list)
 }
-
 
 
 
 ###### Visualize Kruskal_Wallis ###############################
 ## performs Kruskal Wallis and post-hoc Wilcoxon:
 
-vis_Kruskal_Wallis_clusters = function(samples,
-                                       fact,
-                                       conf.level = 0.95,
-                                       samplename = "",
-                                       factorname = "",
-                                       cex = 1,
-                                       notch = F) {
-  
-  oldparkruskal <- par(no.readonly = TRUE)   
-  on.exit(par(oldparkruskal)) 
-  
-  alpha = 1 - conf.level
-  #remove rows with NAs in samples
-  samples3 = na.omit(samples)
-  fact <- subset(fact,!is.na(samples))
-  samples = samples3
-  n_classes = length(unique(fact))
-  #define color scheme dependent on number of classes
+vis_Kruskal_Wallis_clusters <- function(samples,
+                                        fact,
+                                        conf.level = conf.level,
+                                        samplename = "",
+                                        factorname = "",
+                                        cex = 1,
+                                        notch = F) {
+  oldparkruskal <- par(no.readonly = TRUE)
+  on.exit(par(oldparkruskal))
 
-  mc = rainbow(n_classes,alpha = 1)
-  #mc=ColorPalette(n_classes)
+  if (missing(conf.level)) {
+    conf.level <- 0.95
+  }
+  alpha <- 1 - conf.level
+  # remove rows with NAs in samples
+  samples3 <- na.omit(samples)
+  fact <- subset(fact, !is.na(samples))
+  samples <- samples3
+  n_classes <- length(unique(fact))
+  # define color scheme dependent on number of classes
 
-  s = tapply(samples, fact, sd)
-  m = tapply(samples, fact, mean)
+  mc <- rainbow(n_classes, alpha = 1)
+  # mc=ColorPalette(n_classes)
 
-  samples_per_class = c()
+  s <- tapply(samples, fact, sd)
+  m <- tapply(samples, fact, mean)
+
+  samples_per_class <- c()
   for (i in 1:n_classes) {
-    samples_per_class[i] = sum(fact == unique(fact)[i])
+    samples_per_class[i] <- sum(fact == unique(fact)[i])
   }
 
-  kk = kruskal.test(samples ~ fact)
+  kk <- kruskal.test(samples ~ fact)
 
-  extramargin = 0.1
-  margins = calc_min_max_of_y_axis(samples, extramargin, extramargin)
-  mi = margins[[1]]
-  ma = margins[[2]]
+  extramargin <- 0.1
+  margins <- calc_min_max_of_y_axis(samples, extramargin, extramargin)
+  mi <- margins[[1]]
+  ma <- margins[[2]]
 
-  par(mfrow = c(1, 1), oma = c(1, 0, 1, 0)) #oma: outer margin sout, west, north, east
+  par(mfrow = c(1, 1), oma = c(1, 0, 1, 0)) # oma: outer margin sout, west, north, east
 
   if (notch == TRUE) {
-    b = boxplot(
+    b <- boxplot(
       samples ~ fact,
       notch = TRUE,
       col = mc,
@@ -881,17 +868,15 @@ vis_Kruskal_Wallis_clusters = function(samples,
       ylim = c(mi, ma),
       xlab = factorname,
       ylab = samplename,
-      #changes group names size
+      # changes group names size
       cex.lab = cex,
       cex.axis = 0.8 * cex,
       cex.main = cex,
       cex.sub = cex,
       boxwex = 0.5
     )
-  }
-  else
-  {
-    b = boxplot(
+  } else {
+    b <- boxplot(
       samples ~ fact,
       notch = FALSE,
       col = mc,
@@ -908,26 +893,26 @@ vis_Kruskal_Wallis_clusters = function(samples,
   stripchart(
     samples ~ fact,
     vertical = TRUE,
-    #method="jitter",
+    # method="jitter",
     col = rep("grey50", n_classes),
     # ylab = ylab,
-    #xlab = xlab,
+    # xlab = xlab,
     las = 1,
-    #horizontal legend,
+    # horizontal legend,
     add = TRUE
   )
 
-  mtext(c("N = ", b$n), at = c(0.7, seq(1, n_classes)), las = 1) #nmber of cases in each group
-  tuk = sig_diffs_nongauss(samples, fact)
+  mtext(c("N = ", b$n), at = c(0.7, seq(1, n_classes)), las = 1) # nmber of cases in each group
+  tuk <- sig_diffs_nongauss(samples, fact, conf.level = conf.level)
 
-  s = multcompLetters(tuk[[1]][, 4], threshold = alpha)
+  s <- multcompLetters(tuk[[1]][, 4], threshold = alpha)
 
-  ord = c()
+  ord <- c()
 
-  v = attributes(s$Letters)$names
-  f_levels = sort(unique(fact))
+  v <- attributes(s$Letters)$names
+  f_levels <- sort(unique(fact))
   for (i in 1:n_classes) {
-    ord[i] = which(v == f_levels[i])
+    ord[i] <- which(v == f_levels[i])
   }
   (ma)
   text(
@@ -939,44 +924,49 @@ vis_Kruskal_Wallis_clusters = function(samples,
     lwd = 2
   )
 
-  title(paste(kk$method, "p =", signif(kk$p.value, digits = 3)), outer = TRUE)
+  title(paste(kk$method, ": p =", signif(kk$p.value, digits = 3)), outer = TRUE)
   my_list <-
-    list("kruskal_wallis" = kk,
-         "adjusted_p_values_wilcoxon" = tuk)
-   return(my_list)
+    list(
+      "kruskal_wallis" = kk,
+      "adjusted_p_values_wilcoxon" = tuk
+    )
+  return(my_list)
 }
 
 
 ##### Visualize Regression und trumpet curves ###############################
-vis_regr_trumpets = function(x, y, P) {
-  
-  oldparreg <- par(no.readonly = TRUE)   
-  on.exit(par(oldparreg)) 
-  reg = lm(y ~ x)
+vis_regr_trumpets <- function(x, y, conf.level) {
+  if (missing(conf.level)) {
+    conf.level <- 0.95
+  }
+  oldparreg <- par(no.readonly = TRUE)
+  on.exit(par(oldparreg))
+  reg <- lm(y ~ x)
   summary(reg)
 
   ## error bands:
-  y_conf_low = conf_band(x, reg, P, -1)
-  y_conf_up = conf_band(x, reg, P, 1)
+  y_conf_low <- conf_band(x, reg, conf.level, -1)
+  y_conf_up <- conf_band(x, reg, conf.level, 1)
 
-  ma = max(y, reg$fitted)
-  mi = min(y, reg$fitted)
-  spread = ma - mi
+  ma <- max(y, reg$fitted)
+  mi <- min(y, reg$fitted)
+  spread <- ma - mi
 
-  lower = 0.1
-  upper = 0.4
-  margins = calc_min_max_of_y_axis(y, lower, upper)
-  mi = margins[[1]]
-  ma = margins[[2]]
+  lower <- 0.1
+  upper <- 0.4
+  margins <- calc_min_max_of_y_axis(y, lower, upper)
+  mi <- margins[[1]]
+  ma <- margins[[2]]
 
 
   par(oma = c(0, 0, 5, 0))
   plot(x, y, ylim = c(mi, ma))
   points(x,
-         reg$fitted,
-         type = "l",
-         col = 2,
-         lwd = 2)
+    reg$fitted,
+    type = "l",
+    col = 2,
+    lwd = 2
+  )
 
   points(
     x,
@@ -996,15 +986,15 @@ vis_regr_trumpets = function(x, y, P) {
   )
   legend(
     "bottomright",
-    c("regr. line", paste("trumpet curves for gamma=", P)),
+    c("regr. line", paste("confidence band for alpha=", 1 - conf.level)),
     lwd = 2,
     col = c(2, colors()[84], colors()[85]),
     lty = c(1, 2, 3),
     bty = "n"
   )
-  s = summary(reg)
+  s <- summary(reg)
   mtext(
-    paste("Regression: ax + b. trumpet curves for gamma = ", P, "\n \n"),
+    paste("Regression: ax + b. confidence band for alpha = ", 1 - conf.level, "\n \n"),
     outer = TRUE,
     cex = 1.5
   )
@@ -1037,28 +1027,27 @@ vis_regr_trumpets = function(x, y, P) {
   qqnorm(residuals(reg), ylab = "Sample Quantiles of  Residuals")
   qqline(residuals(reg), col = "red", lwd = 2)
 
-  KS = ad.test(residuals(reg))
-  p_KS = signif(KS$p.value, 2)
-  SH = shapiro.test(residuals(reg))
-  p_SH = signif(SH$p.value, 2)
+  KS <- ad.test(residuals(reg))
+  p_KS <- signif(KS$p.value, 2)
+  SH <- shapiro.test(residuals(reg))
+  p_SH <- signif(SH$p.value, 2)
 
   mtext(
     paste(
       "Residual Analysis\n Shapiro-Wilk: p = ",
       p_SH,
-      "\n  Anderson-Darling: P = ",
+      "\n  Anderson-Darling: p = ",
       p_KS
     ),
     outer = TRUE
   )
-
 }
 
 ###### Visualize Residuals ###############################
-vis_resid = function(resid, fitted) {
-  oldparresid <- par(no.readonly = TRUE)   
-  on.exit(par(oldparresid)) 
-  
+vis_resid <- function(resid, fitted) {
+  oldparresid <- par(no.readonly = TRUE)
+  on.exit(par(oldparresid))
+
   par(mfrow = c(1, 2), oma = c(0, 0, 3, 0))
   plot(fitted, resid, main = "Residuals vs. Fitted")
   abline(h = 0, col = 1, lwd = 2)
@@ -1066,10 +1055,10 @@ vis_resid = function(resid, fitted) {
   qqnorm(resid)
   qqline(resid, col = "red", lwd = 2)
 
-  KS = ad.test(resid)
-  p_KS = signif(KS$p.value, 2)
-  SH = shapiro.test(resid)
-  p_SH = signif(SH$p.value, 2)
+  KS <- ad.test(resid)
+  p_KS <- signif(KS$p.value, 2)
+  SH <- shapiro.test(resid)
+  p_SH <- signif(SH$p.value, 2)
 
   mtext(
     paste(
@@ -1080,33 +1069,33 @@ vis_resid = function(resid, fitted) {
     ),
     outer = TRUE
   )
- 
 }
 
 
 ###### Visualize Regression ###############################
-vis_regression_assumptions = function(x,
-                                      y,
+
+# only normality assumptions of standardised residuals
+vis_normality_assumptions <- function(y,
+                                      x,
                                       conf.level = 0.95) {
-  
-  oldparreg <- par(no.readonly = TRUE)   
-  on.exit(par(oldparreg)) 
-  alpha = 1 - conf.level
+  oldparreg <- par(no.readonly = TRUE)
+  on.exit(par(oldparreg))
+  alpha <- 1 - conf.level
   # P = alpha
 
-  #remove all NAs from both vectors
+  # remove all NAs from both vectors
   xna <- x[!is.na(y) & !is.na(x)]
   yna <- y[!is.na(y) & !is.na(x)]
 
   x <- xna
   y <- yna
 
-  ord = order(x)
-  x = sort(x)
-  y = y[ord]
+  ord <- order(x)
+  x <- sort(x)
+  y <- y[ord]
 
-  reg = lm(y ~ x)
-  resreg = summary(reg)
+  reg <- lm(y ~ x)
+  resreg <- summary(reg)
 
 
   par(mfrow = c(1, 2), oma = c(0, 0, 4, 0))
@@ -1115,91 +1104,110 @@ vis_regression_assumptions = function(x,
     rstandard(reg),
     main = "std. Residuals vs. Fitted",
     xlab = "Fitted Values",
-    ylab = "Standardized Residuals"
+    ylab = "standardised Residuals"
   )
   abline(h = 0, col = 1, lwd = 2)
 
   qqnorm(rstandard(reg), ylab = "Sample Quantiles of Std. Residuals")
   qqline(rstandard(reg), col = "red", lwd = 2)
 
-  KS = ad.test(rstandard(lm(y ~ x)))
-  p_KS = signif(KS$p.value, 2)
-  SH = shapiro.test(rstandard(lm(y ~ x)))
-  p_SH = signif(SH$p.value, 2)
-  if (p_KS < alpha & p_SH < alpha)
-  {
+  KS <- ad.test(rstandard(lm(y ~ x)))
+  p_KS <- signif(KS$p.value, 2)
+  SH <- shapiro.test(rstandard(lm(y ~ x)))
+  p_SH <- signif(SH$p.value, 2)
+  if (p_SH < alpha) {
     mtext(
       paste(
         "Residual Analysis\n Shapiro-Wilk: p = ",
         p_SH,
-        "\n Anderson-Darling: p = ",
+        ", Anderson-Darling: p = ",
         p_KS,
-        "\n Requirements regression not met"
+        "\n Requirement of normally distributed residuals not met "
       ),
       outer = TRUE
     )
-
-  } else{
+  } else {
     mtext(
       paste(
         "Residual Analysis\n Shapiro-Wilk: p = ",
         p_SH,
-        "\n Anderson-Darling: p = ",
+        ", Anderson-Darling: p = ",
         p_KS
       ),
       outer = TRUE
     )
   }
 
-  my_list = list(
+  my_list <- list(
     "summary_regression" = resreg,
     "shapiro_test_residuals" = SH,
     "ad_test_residuals" = KS
-
   )
-  
-  
-   return(my_list)
+
+
+  return(my_list)
 }
 
 
 
 
-vis_regression = function(x,
-                          y,
-                          conf.level = 0.05,
-                          name_of_factor = character(),
-                          name_of_sample = character())
-{
-  
-  oldparregr <- par(no.readonly = TRUE)   
+vis_regression <- function(y,
+                           x,
+                           conf.level = conf.level,
+                           name_of_factor = character(),
+                           name_of_sample = character()) {
+  if (missing(conf.level)) {
+    conf.level <- 0.95
+  }
+  oldparregr <- par(no.readonly = TRUE)
   on.exit(par(oldparregr))
-  
-  alpha = 1 - conf.level
-  P = alpha
-  #remove all NAs from both vectors
+
+  alpha <- 1 - conf.level
+
+  # remove all NAs from both vectors
   xna <- x[!is.na(y) & !is.na(x)]
   yna <- y[!is.na(y) & !is.na(x)]
 
   x <- xna
   y <- yna
 
-  ord = order(x)
-  x = sort(x)
-  y = y[ord]
-  ylim = 1.1 * max(y, na.rm <- T)
-  reg = lm(y ~ x)
-  resreg = summary(reg)
+  ord <- order(x)
+  x <- sort(x)
+  y <- y[ord]
+  ylim <- 1.1 * max(y, na.rm <- T)
+
+
+
+  # di
+  reg <- lm(y ~ x)
+  resreg <- summary(reg)
+
 
   ## error bands:
-  y_conf_low = conf_band(x, reg, P, -1)
-  y_conf_up = conf_band(x, reg, P, 1)
-  y_progn_low = progn_band(x, reg, P, -1)
-  y_progn_up = progn_band(x, reg, P, 1)
-  ma = max(y, reg$fitted, y_progn_up, na.rm <- T)
-  mi = min(y, reg$fitted, y_progn_low, na.rm <- T)
 
-  spread = ma - mi
+  # #old cold-depreciated, replaced by predict function------
+  # y_conf_lowa = conf_band(x, reg, conf.level, -1)
+  # y_conf_upa = conf_band(x, reg, conf.level, 1)
+  # y_progn_lowa = progn_band(x, reg, conf.level, -1)
+  # y_progn_upa = progn_band(x, reg, conf.level, 1)
+  # #-------------------
+
+  conf.int_prediction <- predict(reg, interval = "confidence", level = conf.level) # confidence band
+  pred.int_prediction <- suppressWarnings(predict(reg, interval = "prediction", level = conf.level)) # prediction band
+
+  y_conf_low <- conf.int_prediction[, 2]
+  y_conf_up <- conf.int_prediction[, 3]
+  y_progn_low <- pred.int_prediction[, 2]
+  y_progn_up <- pred.int_prediction[, 3]
+
+  predicted_value <- conf.int_prediction[, 1]
+
+  error_bands <- cbind(predicted_value, y_conf_low, y_conf_up, y_progn_low, y_progn_up)
+
+  ma <- max(y, reg$fitted, y_progn_up, na.rm <- T)
+  mi <- min(y, reg$fitted, y_progn_low, na.rm <- T)
+
+  spread <- ma - mi
 
   par(mfrow = c(1, 1), oma = c(0, 0, 5, 0))
   plot(
@@ -1209,13 +1217,14 @@ vis_regression = function(x,
     xlab = name_of_factor,
     ylab = name_of_sample
   )
-  
+
   points(x,
-         reg$fitted,
-         type = "l",
-         col = colorscheme(2)[1], #dark green
-         lwd = 2)
-#plot confidence band, lower boundary
+    reg$fitted,
+    type = "l",
+    col = colorscheme(2)[1], # dark green
+    lwd = 2
+  )
+  # plot confidence band, lower boundary
   points(
     x,
     y_conf_low,
@@ -1224,7 +1233,7 @@ vis_regression = function(x,
     lty = 2,
     col = colorscheme(1)[1]
   )
-  #plot confidence band, upper boundary
+  # plot confidence band, upper boundary
   points(
     x,
     y_conf_up,
@@ -1233,7 +1242,7 @@ vis_regression = function(x,
     lty = 2,
     col = colorscheme(1)[1]
   )
-  #plot prognosis band, lower boundary
+  # plot prognosis band, lower boundary
   points(
     x,
     y_progn_low,
@@ -1242,7 +1251,7 @@ vis_regression = function(x,
     lty = 3,
     col = colorscheme(1)[2]
   )
-  #plot prognosis band, upper boundary
+  # plot prognosis band, upper boundary
   points(
     x,
     y_progn_up,
@@ -1254,146 +1263,135 @@ vis_regression = function(x,
 
   legend(
     "topleft",
-    horiz=TRUE,
+    horiz = FALSE,
     text.width = 0.75,
     c("regr. line", "confidence band", "prognosis band"),
-    lwd = 2, #line width
-    col = c(colorscheme(2)[1], colorscheme(1)[1],colorscheme(1)[2]),
-    lty = c(1, 2, 3), #line types of legend
-    bty = 'n', #no box around legend
-    cex=0.75 #reduces the legend size
+    lwd = 2, # line width
+    col = c(colorscheme(2)[1], colorscheme(1)[1], colorscheme(1)[2]),
+    lty = c(1, 2, 3), # line types of legend
+    bty = "n", # no box around legend
+    cex = 0.8 # reduces the legend size
   )
-  
-  
-  s = summary(reg)
 
-  b = confint(reg)
 
-  KS = ad.test(rstandard(lm(y ~ x)))
+  s <- summary(reg)
 
-  SH = shapiro.test(rstandard(lm(y ~ x)))
+  conf_intervall_regression <- confint(reg, level = conf.level) # conf.int confidence interval of slope and intercept
+
+  AD <- ad.test(rstandard(lm(y ~ x)))
+
+  SH <- shapiro.test(rstandard(lm(y ~ x)))
 
   mtext(
     paste(
-      " regression: y = ax + b \n Confidence = ",
-      alpha,
-      ", a = ",
+      "y = a*x +b, confidence level = ", conf.level, ", adjusted R2 = ", signif(s$adj.r.squared, 2),
+      " \n slope a = ",
       signif(reg$coefficients[2], 2),
-      ", interval [",
-      signif(b[2, 1], 2),
+      ", conf. interval [",
+      signif(conf_intervall_regression[2, 1], 2),
       ",",
-      signif(b[2, 2], 2),
+      signif(conf_intervall_regression[2, 2], 2),
       "]",
       ", p = ",
       signif(s$coefficients[2, 4], 2),
-      "\n b = ",
+      "\n intercept b = ",
       signif(reg$coefficients[1], 2),
-      ", interval [",
-      signif(b[1, 1], 2),
+      ", conf. interval [",
+      signif(conf_intervall_regression[1, 1], 2),
       ",",
-      signif(b[1, 2], 2),
+      signif(conf_intervall_regression[1, 2], 2),
       "]",
       ", p = ",
-      signif(s$coefficients[1, 4], 2),
-      "\n adjusted R^2 = ",
-      signif(s$adj.r.squared, 2)
+      signif(s$coefficients[1, 4], 2)
     ),
     outer = TRUE
   )
 
-  my_list = list(
-    "independent variable x"=name_of_factor,
-    "dependent variable y"=name_of_sample,
+  my_list <- list(
+    "independent variable x" = name_of_factor,
+    "dependent variable y" = name_of_sample,
     "summary_regression" = resreg,
     "shapiro_test_residuals" = SH,
-    "ad_test_residuals" = KS
+    "anderson_darling_test_residuals" = AD,
+    "error_bands" = error_bands
   )
-  
-   return(my_list)
+
+  return(my_list)
 }
 
 
-#Mosaic plots-----
-vis_mosaic = function(samples,
-                      fact,
-                      name_of_sample = character(),
-                      name_of_factor= character(),
-                      minperc = 0.05,
-                      numbers = TRUE)
-{
-  
-  oldparmosaic <- par(no.readonly = TRUE)   
-  oldparmosaic$new=FALSE
+# Mosaic plots-----
+vis_mosaic <- function(samples,
+                       fact,
+                       name_of_sample = character(),
+                       name_of_factor = character(),
+                       minperc = 0.05,
+                       numbers = TRUE) {
+  oldparmosaic <- par(no.readonly = TRUE)
+  oldparmosaic$new <- FALSE
   on.exit(par(oldparmosaic))
-  
-  if (missing(minperc))
-  {
-    #minperc is the minimum percehntage a column has to contribute to be displayed
-    minperc = 0.05
+
+  if (missing(minperc)) {
+    # minperc is the minimum percehntage a column has to contribute to be displayed
+    minperc <- 0.05
   }
-  if (missing(numbers))
-  {
-    #numbers are shown in rectangle of category
-    numbers = TRUE
+  if (missing(numbers)) {
+    # numbers are shown in rectangle of category
+    numbers <- TRUE
   }
 
-  counts = makeTable(samples, fact,name_of_sample, name_of_factor)
-  check_assumptions = check_assumptions_count_data(samples, fact)
-  if (check_assumptions == FALSE)
-  {
-    my_list =counts
-     return(my_list)
-  }
-
-  else{
-
-    ##Mosaic plot
-    ##The height  of the box is the same for all boxes in the same row and
-    #is equal to the total count in that row.
+  counts <- makeTable(samples, fact, name_of_sample, name_of_factor)
+  check_assumptions <- check_assumptions_count_data(samples, fact)
+  if (check_assumptions == FALSE) {
+    my_list <- counts
+    return(my_list)
+  } else {
+    ## Mosaic plot
+    ## The height  of the box is the same for all boxes in the same row and
+    # is equal to the total count in that row.
     #
-    #The width of the box is the proportion of individuals in the row which fall into that cell.
+    # The width of the box is the proportion of individuals in the row which fall into that cell.
     # #Full mosaic plot with all data only if unique number of samples and fact below threshold
-    maxfactors = max(length(unique(samples)), length(unique(fact)))
-    threshold = 6
+    maxfactors <- max(length(unique(samples)), length(unique(fact)))
+    threshold <- 6
 
     if (length(unique(samples)) < threshold &
-        length(unique(fact)) < threshold)
-    {
-      res = mosaic(
+      length(unique(fact)) < threshold) {
+      res <- mosaic(
         counts,
         shade = TRUE,
-        legend = TRUE,  #shows pearsons residual
+        legend = TRUE, # shows pearsons residual
         pop = F
-        #,main = titletext
+        # ,main = titletext
       )
 
       tab <-
         as.table(ifelse(counts < 0.005 * sum(counts), NA, counts))
-      #puts numbers on count
+      # puts numbers on count
       if (numbers == TRUE) {
         labeling_cells(text = tab, margin = 0)(counts)
       }
-    } else{
+    } else {
       #
-      ##Elimintate rows and columns distributing less than minperc total number of counts
-      rowSum = rowSums(counts)
-      colSum = colSums(counts)
-      total = sum(counts)
+      ## Elimintate rows and columns distributing less than minperc total number of counts
+      rowSum <- rowSums(counts)
+      colSum <- colSums(counts)
+      total <- sum(counts)
 
 
-      countscolumn_row_reduced = as.table(counts[which(rowSum > minperc * total),
-                                                 which(colSum > minperc * total)])
+      countscolumn_row_reduced <- as.table(counts[
+        which(rowSum > minperc * total),
+        which(colSum > minperc * total)
+      ])
 
-      #check dimensions after reduction: must be a contingency table
-      test = dim(as.table(countscolumn_row_reduced))
-      if (is.na(test[2]))
-      {
-        countsreduced = counts
+      # check dimensions after reduction: must be a contingency table
+      test <- dim(as.table(countscolumn_row_reduced))
+      if (is.na(test[2])) {
+        countsreduced <- counts
+      } else {
+        countsreduced <- countscolumn_row_reduced
       }
-      else{
-        countsreduced = countscolumn_row_reduced
-      }
-      res = mosaic(
+      res <- mosaic(
         countsreduced,
         shade = TRUE,
         legend = TRUE,
@@ -1407,14 +1405,12 @@ vis_mosaic = function(samples,
       if (numbers == TRUE) {
         labeling_cells(text = countsreduced, margin = 0)(countsreduced)
       }
-
     }
     my_list <-
       list(
-        "mosaic_stats" =res
-
+        "mosaic_stats" = res
       )
-    
+
     return(my_list)
   }
 }
@@ -1422,20 +1418,19 @@ vis_mosaic = function(samples,
 
 
 
-#Helper functions--------------------------------------
+# Helper functions--------------------------------------
 
-#Check for type of samples and fact
-type_sample_fact = function(samples, fact)
-{
-  typesample = class(samples)
-  typefactor = class(fact)
-  listsf = list("typesample" = typesample, "typefactor" = typefactor)
+# Check for type of samples and fact
+type_sample_fact <- function(samples, fact) {
+  typesample <- class(samples)
+  typefactor <- class(fact)
+  listsf <- list("typesample" = typesample, "typefactor" = typefactor)
   return(listsf)
 }
 
-#helper function odds ratio
-#calculation of odds ratio
-odds_ratio = function(a, b, c, d, alpha, zerocorrect) {
+# helper function odds ratio
+# calculation of odds ratio
+odds_ratio <- function(a, b, c, d, alpha, zerocorrect) {
   attr(odds_ratio, "help") <-
     "odds_ratio calculates odds ratio OR=(a/b)/(c/d) and corresponding upper and lower confidence intervalls\n INPUT: a = group 1 positive, c = group 2 positive, b=group 1 non positive, d = group 2 non positive, 1-alpha: confidence level, default alpha=0.05"
 
@@ -1446,141 +1441,135 @@ odds_ratio = function(a, b, c, d, alpha, zerocorrect) {
 
 
   if (missing(alpha)) {
-    alpha = 0.05
+    alpha <- 0.05
   }
   if (missing(zerocorrect)) {
-    zerocorrect = TRUE
+    zerocorrect <- TRUE
   }
-  #odds ratio:=OR=a/b/(c/d)
+  # odds ratio:=OR=a/b/(c/d)
 
-  #eliminate columns with zeros
-  #a=c=0 or b=d 0: no positive or no negative cases in both groups
+  # eliminate columns with zeros
+  # a=c=0 or b=d 0: no positive or no negative cases in both groups
   # Higgins and Green 2011:
 
-  if (zerocorrect == TRUE)
-  {
-    #eliminate columns with zeros, if
-    #a=c=0 or b=d=0: no positive or no control cases in BOTH groups
+  if (zerocorrect == TRUE) {
+    # eliminate columns with zeros, if
+    # a=c=0 or b=d=0: no positive or no control cases in BOTH groups
     # Higgins and Green 2011:
-    doublezero = which(a == 0 &
-                         c == 0 | b == 0 & d == 0, arr.ind = T)
-    a[doublezero] = NaN
-    b[doublezero] = NaN
-    c[doublezero] = NaN
-    d[doublezero] = NaN
-    #Where zeros cause problems with computation of effects or standard errors, 0.5 is added to all cells (a, b, c, d)
-    singlezero = which(a == 0 |
-                         b == 0 | c == 0 | d == 0, arr.ind = T)
-    a[singlezero] = a[singlezero] + 0.5
-    b[singlezero] = b[singlezero] + 0.5
-    c[singlezero] = c[singlezero] + 0.5
-    d[singlezero] = d[singlezero] + 0.5
-
+    doublezero <- which(a == 0 &
+      c == 0 | b == 0 & d == 0, arr.ind = T)
+    a[doublezero] <- NaN
+    b[doublezero] <- NaN
+    c[doublezero] <- NaN
+    d[doublezero] <- NaN
+    # Where zeros cause problems with computation of effects or standard errors, 0.5 is added to all cells (a, b, c, d)
+    singlezero <- which(a == 0 |
+      b == 0 | c == 0 | d == 0, arr.ind = T)
+    a[singlezero] <- a[singlezero] + 0.5
+    b[singlezero] <- b[singlezero] + 0.5
+    c[singlezero] <- c[singlezero] + 0.5
+    d[singlezero] <- d[singlezero] + 0.5
   }
 
-  oddA = a / b
-  oddB = c / d
+  oddA <- a / b
+  oddB <- c / d
 
-  OR = oddA / oddB
+  OR <- oddA / oddB
 
-  #confidence intervall
-  #SE of ln(OR)
-  SE = sqrt(1 / a + 1 / b + 1 / c + 1 / d)
-  alpha = 0.05
+  # confidence intervall
+  # SE of ln(OR)
+  SE <- sqrt(1 / a + 1 / b + 1 / c + 1 / d)
+  alpha <- 0.05
   zalph <- qnorm(1 - alpha / 2)
 
-  logLOW = log(OR) - zalph * SE
-  logUP = log(OR) + zalph * SE
+  log_low <- log(OR) - zalph * SE
+  log_up<- log(OR) + zalph * SE
 
-  lowconf = exp(logLOW) #lower confidence
-  upconf = exp(logUP)
+  lowconf <- exp(log_low) # lower confidence
+  upconf <- exp(log_up)
 
-  output = rbind(OR, lowconf, upconf, SE)
-  my_list = ("odds_ratio_statistics" = output)
+  output <- rbind(OR, lowconf, upconf, SE)
+  my_list <- ("odds_ratio_statistics" <- output)
   return(my_list)
-  
 }
 
-#create sorted table
-makeTable = function(samples, fact, samplename, factorname)
-{
-  counts = data.frame(fact, samples)
-  colnames(counts) = c(factorname, samplename)
-  counts2 = table(counts)
-  #sort by column sums
-  counts3 = counts2[, order(colSums(counts2), decreasing = T)]
-  #sort by row sums
-  counts4 = counts3[order(rowSums(counts3), decreasing = T),]
-  #remove columnns with all entries zero
-  counts4 = counts4[, colSums(counts4 != 0) > 0]
+# create sorted table
+makeTable <- function(samples, fact, samplename, factorname) {
+  counts <- data.frame(fact, samples)
+  colnames(counts) <- c(factorname, samplename)
+  counts2 <- table(counts)
+  # sort by column sums
+  counts3 <- counts2[, order(colSums(counts2), decreasing = T)]
+  # sort by row sums
+  counts4 <- counts3[order(rowSums(counts3), decreasing = T), ]
+  # remove columnns with all entries zero
+  counts4 <- counts4[, colSums(counts4 != 0) > 0]
 
   return(counts4)
-
 }
 
-fisher_chi = function(counts)
-{
-  #if Cochran requirements for chi2 not given: fisher test is performed
-  # if more than 20% of cells have count smaller 5
+fisher_chi <- function(counts) {
+  # if Cochran requirements for chi2 not given: fisher test is performed
+  # if more than 20% of cells have EXPECTED count smaller 5 or one cell has expected count smaller than 1
   #
-  #
-  if (any(counts == 0) #at least one cell with zero enry
-      |
-      sum(counts < 5) / length(counts) > 0.2# more than 20% of cells have count smaller 5
-      &
-      #Fisher Tests breaks down for too large tables
+
+  suppressWarnings(chisq <- chisq.test(counts))
+  expected_counts <- chisq$expected
+
+  if (any(expected_counts < 1) # at least one cell with expectation value smaller 1
+  |
+    sum(expected_counts < 5) / length(expected_counts) > 0.2 # more than 20% of cells have expected count smaller 5
+    &
+      # Fisher Tests breaks down for too large tables
       dim(counts)[2] < 7) {
-    #fisher.test
-    testFisherChi = fisher.test(
+    # fisher.test
+    testFisherChi <- fisher.test(
       counts,
       workspace = 1e9,
       simulate.p.value = T,
       hybrid = F,
       B = 1e5
     )
-  } else{
-    testFisherChi = chisq.test(counts)
-
+  } else {
+    testFisherChi <- chisq
   }
 
   return(testFisherChi)
 }
 
-side_of_nh = function(alternative)
-{
+side_of_nh <- function(alternative) {
   if (alternative == "less") {
-    compare = c(">=")
+    compare <- c(">=")
   } else if (alternative == "greater") {
-    compare = c("<=")
-  } else
-    compare = c("equals")
+    compare <- c("<=")
+  } else {
+    compare <- c("equals")
+  }
   return(compare)
-
 }
 
-create_two_samples_vector = function(samples, fact)
-{
-  #Creates column vector built out of two samples
-  #samples all in one column
-  levels = unique(sort(fact))
-  #two levels
+create_two_samples_vector <- function(samples, fact) {
+  # Creates column vector built out of two samples
+  # samples all in one column and sorted
+  levels <- unique(sort(fact))
+  # two levels
   if (length(levels) > 2) {
     return(warning(
       "warning: create_two_samples_vector: only two level input allowed"
     ))
-  } else{
-    samples1 = samples[fact == levels[1]]
+  } else {
+    samples1 <- samples[fact == levels[1]]
     samples1 <- samples1[!is.na(samples1)]
     if (length(samples1) == 0) {
       return(warning("each group needs at least one entry"))
-    } else{
-      samples2 = samples[fact == levels[2]]
+    } else {
+      samples2 <- samples[fact == levels[2]]
       samples2 <- samples2[!is.na(samples2)]
       if (length(samples2) == 0) {
         return(warning("each group needs at least one entry"))
       } else {
-        x = c(samples1, samples2)
-        my_list = list(
+        x <- c(samples1, samples2)
+        my_list <- list(
           "sample1" = samples1,
           "sample2" = samples2,
           "sample1and2" = x
@@ -1591,33 +1580,28 @@ create_two_samples_vector = function(samples, fact)
   }
 }
 
-calc_min_max_of_y_axis = function(samples,
-                                  lowerExtramargin,
-                                  upperExtramargin)
-{
-  maximum = max(samples, na.rm = T)
-  minimum = min(samples, na.rm = T)
-  spread = maximum - minimum
-  min_y_axis = minimum - lowerExtramargin * spread
-  max_y_axis = maximum + upperExtramargin * spread
+calc_min_max_of_y_axis <- function(samples,
+                                   lowerExtramargin,
+                                   upperExtramargin) {
+  maximum <- max(samples, na.rm = T)
+  minimum <- min(samples, na.rm = T)
+  spread <- maximum - minimum
+  min_y_axis <- minimum - lowerExtramargin * spread
+  max_y_axis <- maximum + upperExtramargin * spread
   return(list(min_y_axis, max_y_axis))
-
 }
 
 
-check_assumptions_shapiro = function(x)
-{
+check_assumptions_shapiro <- function(x) {
   x <- sort(x[complete.cases(x)])
   n <- length(x)
-  rng <- x[n] - x[1L]#1L is integer
-  checkSize = !(is.na(n) || n < 3L || n > 5000L) #FALSE or TRUE
-  if (checkSize == FALSE)
-  {
+  rng <- x[n] - x[1L] # 1L is integer
+  checkSize <- !(is.na(n) || n < 3L || n > 5000L) # FALSE or TRUE
+  if (checkSize == FALSE) {
     warning("sample size must be between 3 and 5000")
     return(FALSE)
   }
-  if (rng == 0)
-  {
+  if (rng == 0) {
     warning("all 'x' values are identical")
     return(FALSE)
   }
@@ -1627,231 +1611,237 @@ check_assumptions_shapiro = function(x)
   return(TRUE)
 }
 
-check_assumption_shapiro_size_range_two_samples = function(x1, x2) {
-  boolean1 = check_assumptions_shapiro(x1)
-  boolean2 = check_assumptions_shapiro(x2)
-  if (boolean1 == TRUE & boolean2 == TRUE)
-  {
+check_assumption_shapiro_size_range_two_samples <- function(x1, x2) {
+  boolean1 <- check_assumptions_shapiro(x1)
+  boolean2 <- check_assumptions_shapiro(x2)
+  if (boolean1 == TRUE & boolean2 == TRUE) {
     return(TRUE)
-  } else{
+  } else {
     return(FALSE)
   }
 }
 
 
-check_assumptions_count_data = function(samples, fact)
-{
-  counts = table(samples, fact)
+check_assumptions_count_data <- function(samples, fact) {
+  counts <- table(samples, fact)
   sr <- rowSums(counts)
   sc <- colSums(counts)
   counts <- counts[sr > 0, sc > 0, drop = FALSE]
   nr <- as.integer(nrow(counts))
   nc <- as.integer(ncol(counts))
-  if (is.null(dim(counts)))
-  {
+  if (is.null(dim(counts))) {
     warning("no entries in count table ")
     return(FALSE)
-  } else if (is.na(nr) || is.na(nc) || is.na(nr * nc))
-  {
+  } else if (is.na(nr) || is.na(nc) || is.na(nr * nc)) {
     warning("invalid nrow  or ncol in count data ", domain = NA)
     return(FALSE)
-  } else if (nr <= 1L)
-  {
+  } else if (nr <= 1L) {
     warning("need 2 or more non-zero row marginals")
     return(FALSE)
-  } else if (nc <= 1L)
-  {
+  } else if (nc <= 1L) {
     warning("need 2 or more non-zero column marginals")
     return(FALSE)
-  } else{
+  } else {
     return(TRUE)
   }
 }
 
-sig_diffs_nongauss <- function(samples, fact)
-{
+sig_diffs_nongauss <- function(samples, fact, conf.level = conf.level) {
   # function to produce a table similar to that produced for TukeyHSD,
   # but for non-normally distributed data
   # calculate p values for each data classification based on pairwise.wilcox.test
 
-  ufactor = levels(fact)
-  pwt = pairwise.wilcox.test(samples, fact)
-  factormeans = matrix(0, length(ufactor), 1)
+  if (missing(conf.level)) {
+    conf.level <- 0.95
+  }
+
+  ufactor <- levels(fact)
+  pwt <- pairwise.wilcox.test(samples, fact, conf.level = conf.level)
+  factormeans <- matrix(0, length(ufactor), 1)
   for (ii in 1:length(ufactor)) {
-    pos = which(fact == ufactor[ii])
+    pos <- which(fact == ufactor[ii])
 
-    factormeans[ii] = mean(samples[pos])
-
+    factormeans[ii] <- mean(samples[pos])
   }
 
   # make a matrix with a row for every possible combination of
   # 2 data classifications and populate it with the calculated
   # p values
 
-  xcomb = combn(length(ufactor), 2)
-  tukeylike = matrix(0, ncol(xcomb), 4)
+  xcomb <- combn(length(ufactor), 2)
+  tukeylike <- matrix(0, ncol(xcomb), 4)
   colnames(tukeylike) <- c("diff", "lwr", "upr", "p adj")
-  tukeynames = vector("list", ncol(xcomb))
+  tukeynames <- vector("list", ncol(xcomb))
   for (ii in 1:ncol(xcomb)) {
-    tukeynames[ii] =
+    tukeynames[ii] <-
       paste(ufactor[xcomb[2, ii]], "-", ufactor[xcomb[1, ii]], sep = "")
 
-
-    p_value = pwt$p.value[xcomb[2, ii] - 1, xcomb[1, ii]]
+    p_value <- pwt$p.value[xcomb[2, ii] - 1, xcomb[1, ii]]
 
     if (is.na(p_value)) {
-      p_value = 1
+      p_value <- 1
     }
-    tukeylike[ii, 4] = p_value
-    tukeylike[ii, 1] = 0
-    tukeylike[ii, 2] = 0
-    tukeylike[ii, 3] = 0
 
+    tukeylike[ii, 4] <- p_value
+    tukeylike[ii, 1] <- NA
+    tukeylike[ii, 2] <- NA
+    tukeylike[ii, 3] <- NA
   }
-  rownames(tukeylike) = tukeynames
+  rownames(tukeylike) <- tukeynames
 
   # re-format the table slightly so it is the same as that produced
   # by TukeyHSD and output
 
-  tukeylike2 = list(tukeylike)
-  #print(tukeylike2)
+  tukeylike2 <- list(tukeylike)
+
   return(tukeylike2)
 }
 
 
-conf_band = function(x, reg, P, up) {
-  #reg: result of linear regression lm
-  #up: fact plus or minus
-  if (missing(P)) {
-    P = 0.05
+conf_band <- function(x, reg, conf.level = conf.level, up) {
+  # reg: result of linear regression lm
+  # up: fact plus or minus
+  if (missing(conf.level)) {
+    conf.level <- 0.95
   }
 
   if (missing(up)) {
-    up = 1
+    up <- 1
   }
+  alpha <- 1 - conf.level
+  a <- reg$coefficients[2] # slope
+  b <- reg$coefficients[1] # constant
+  md <- x - mean(x)
 
-  a = reg$coefficients[2]
-  b = reg$coefficients[1]
-  md = x - mean(x)        #residual 
+  result <- x # initialization
 
-  result = x
+  # formula standard error of the regression line at point x:
+  # https://stats.stackexchange.com/questions/101318/understanding-shape-and-calculation-of-confidence-bands-in-linear-regression
+  # See also statistics script page 124: konfidenzint4erval
 
+  # http://www.sthda.com/english/articles/40-regression-analysis/166-predict-in-r-model-predictions-and-confidence-intervals/
   for (i in 1:length(x)) {
-    result[i] = a * x[i] + b + up * qt(P, length(x) - 2) * sqrt(sum(reg$resid *
-                                                                      reg$resid) / (length(x) - 2)) * sqrt(1 / (length(x) - 2) + md[i] ^ 2 / sum(md *
-                                                                                                                                                   md))
+    result[i] <- a * x[i] + b +
+      up * qt(1 - alpha / 2, length(x) - 2) *
+        # Standard error of the estimate
+        sqrt(sum(reg$resid * reg$resid) / (length(x) - 2)) *
+        #
+        sqrt(1 / (length(x)) + md[i]^2 / sum(md * md))
   }
   return(result)
 }
 
-progn_band = function(x, reg, P, up) {
-  if (missing(P)) {
-    P = 0.05
+progn_band <- function(x, reg, conf.level, up) {
+  if (missing(conf.level)) {
+    conf.level <- 0.95
   }
-
+  alpha <- 1 - conf.level
   if (missing(up)) {
-    up = 1
+    up <- 1
   }
-  a = reg$coefficients[2]
-  b = reg$coefficients[1]
-  md = x - mean(x)
+  a <- reg$coefficients[2]
+  b <- reg$coefficients[1]
+  md <- x - mean(x)
 
-  result = x
+  result <- x
 
   for (i in 1:length(x)) {
-    result[i] = a * x[i] + b + up * qt(P, length(x) - 2) * sqrt(sum(reg$resid *
-                                                                      reg$resid) / (length(x) - 2)) * sqrt(1 + 1 / (length(x) - 2) + md[i] ^ 2 /                                                                                                             sum(md * md))
+    result[i] <- a * x[i] + b +
+      up * qt(1 - alpha / 2, length(x) - 2) *
+        # Standard error of the estimate
+        sqrt(sum(reg$resid * reg$resid) / (length(x) - 2)) *
+        #
+        sqrt(1 + 1 / (length(x)) + md[i]^2 / sum(md * md))
   }
   return(result)
 }
+calculate_comparepvalue <- function(p_value, conf.level) {
+  if (p_value < 1 - conf.level) {
+    comparepvalue <- "<"
+  } else {
+    comparepvalue <- ">"
+  }
+  return(comparepvalue)
+}
 
-
-# Check for normality with Shapiro-Wilk-test without visualization----
-test_norm = function(x) {
-  #Remove NA from x
+# Check for normality with Shapiro-Wilk test without visualization----
+test_norm <- function(x) {
+  # Remove NA from x
   x <- x[!is.na(x)]
   #  KS = ks.test(x, pnorm, mean(x), sd(x))
-  shapiro_wilk_test = shapiro.test(x)
+  shapiro_wilk_test <- shapiro.test(x)
   # my_list = list("Kolmogorov-Smirnoff" = KS, "Shapiro" =SH)
   return(shapiro_wilk_test)
 }
 
-#Check length of distributions for t-test----
-check_assumption_sample_size_t_test = function(x1, x2, minimum_size) {
-  #x1 sample 1
-  #x2 sample 2
-  #minimum_size:return TRUE if length> minimum_size
-  if (length(x1) > minimum_size & length(x2) > minimum_size)
-  {
+# Check length of distributions for t-test----
+check_assumption_sample_size_t_test <- function(x1, x2, minimum_size) {
+  # x1 sample 1
+  # x2 sample 2
+  # minimum_size:return TRUE if length> minimum_size
+  if (length(x1) > minimum_size & length(x2) > minimum_size) {
     return(TRUE)
-  } else{
+  } else {
     return(FALSE)
   }
 }
 
-#Define color scheme-----
+# Define color scheme-----
 
-#'\code{colorscheme(x)} selects color scheme of graphical output. Function parameter NULL lists all available color schemes, 1 a color tuple of green and blue
-#'2 a color tuple of dark green and turquoi, 3 a colorplaette as defined by RcolorBrewer
+#' \code{colorscheme(x)} selects color scheme of graphical output. Function parameter NULL lists all available color schemes, 1 a color tuple of green and blue
+#' 2 a color tuple of dark green and turquoi, 3 a colorplaette as defined by RcolorBrewer
 
 #'
 #' @param colorcode selects color scheme. parameters NULL: list of all available color schemes, 1: colortuple, 2, colortuple2, 3, ColorPalette
 #' @return selected color scheme, colors are given with their Hex Code #RRGGBB names
 
 
-colorscheme = function(colorcode = NULL)
-{
-  browserLightGreen = "#B8E0B8" #matched part group0
-  browserLightBlue = "#B3D1EF"#matched part group1
-  browserLightTurquois = "#B3E1EF"#light turquois
-  browserDarkGreen = "#5CB85C" #dark green
-  colortuple = c(browserLightGreen, browserLightBlue)
-  colortuple2 = c(browserDarkGreen, browserLightTurquois)
-  #from package RColorBrewer Set 3
-  ColorPalette = c(
-    "#8DD3C7" ,
-    "#FFFFB3" ,
-    "#BEBADA" ,
+colorscheme <- function(colorcode = NULL) {
+  browserLightGreen <- "#B8E0B8" # matched part group0
+  browserLightBlue <- "#B3D1EF" # matched part group1
+  browserLightTurquois <- "#B3E1EF" # light turquois
+  browserDarkGreen <- "#5CB85C" # dark green
+  colortuple <- c(browserLightGreen, browserLightBlue)
+  colortuple2 <- c(browserDarkGreen, browserLightTurquois)
+  # from package RColorBrewer Set 3
+  ColorPalette <- c(
+    "#8DD3C7",
+    "#FFFFB3",
+    "#BEBADA",
     "#FB8072",
     "#80B1D3",
     "#FDB462",
     "#B3DE69",
     "#FCCDE5",
     "#D9D9D9",
-    "#BC80BD" ,
-    "#CCEBC5" ,
+    "#BC80BD",
+    "#CCEBC5",
     "#FFED6F"
   )
 
 
-  my_list = list(
+  my_list <- list(
     "colortuple" = colortuple,
     "colortuple2" = colortuple2,
     "ColorPalette" = ColorPalette
   )
 
-  if (is.null(colorcode))
-  {
+  if (is.null(colorcode)) {
     return(my_list)
-  }
-  else if (colorcode == 1) {
+  } else if (colorcode == 1) {
     return(colortuple)
   } else if (colorcode == 2) {
     return(colortuple2)
   } else if (colorcode == 3) {
     return(ColorPalette)
-  } else{
+  } else {
     message("Choose valid parameter: NULL, 1,2 or 3")
   }
-
-
 }
 
 resetPar <- function() {
   dev.new
-  while (!is.null(dev.list()))  dev.off() #restores to default values
+  while (!is.null(dev.list())) dev.off() # restores to default values
   oldpar <- par(no.readonly = TRUE)
   return(oldpar)
 }
-
-
