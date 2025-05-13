@@ -1,4 +1,4 @@
-652360050a2d49226cc02fea0b8798d9 *DESCRIPTION
+23ec3f1e4bbbafdd68fbb80d1103254f *DESCRIPTION
 0a50f7fe9bf5e4fb77c09e8a42ca9787 *LICENSE
 a4ff8f79c1a5bb135c614a1572a966da *NAMESPACE
 b6e0dc92aa9fd62fafd8348e2fd64a18 *NEWS.md
@@ -6,15 +6,15 @@ b6e0dc92aa9fd62fafd8348e2fd64a18 *NEWS.md
 8ddc7ba93fe40ee78120d8a0f5d09a8a *R/get_samples_fact_inputfile.R
 7155392da0a07bf7b6ea4e67afc77d5e *R/openGraphCairo.R
 03d8bebf7fa29eb21bd216082bdaea5f *R/saveGraphVisstat.R
-e1759d6fe98abb8ec4d311c99f7db2aa *R/test_and_visuals.R
+95505229b873ed1b5f6159e055771d3b *R/test_and_visuals.R
 594d72f308e3aaeb5812827fa49713a9 *R/vis_anova_assumptions.R
 c88abe9669a3b4bd845fd545208bff89 *R/visstat.R
 07e2c5127d110e7db85f4c35ff681f0c *README.md
 4b206c021ed0332f843aa28b47bc22cd *build/vignette.rds
 05e9dc672ce3aef27b92bff5df108131 *inst/WORDLIST
 038e162b46dd29469626f7530c58a6c0 *inst/doc/visStatistics.R
-cea6d2e68e54bc8a0c55e5b1d5d3ade2 *inst/doc/visStatistics.Rmd
-0f1120a08c2daadc8feba5dd9100bf7f *inst/doc/visStatistics.html
+e3e39931d161cb3a11cdfd30d73d3f5e *inst/doc/visStatistics.Rmd
+0cb1a56166de857ac8264a1dd20a4fd4 *inst/doc/visStatistics.html
 72967f4e300bf8282fca4402e1d5b6a4 *man/colorscheme.Rd
 375c399dddd313a489b4d7770bc843d7 *man/counts_to_cases.Rd
 277a5a4335f74042833cb26e79f129d2 *man/figures/README-pressure-1.pdf
@@ -32,10 +32,10 @@ d99a24576dbe85c50f24afbaed6d5ba7 *man/figures/README-unnamed-chunk-10-2.pdf
 1a7c02631d51642c8ce90f92c9389633 *man/figures/README-unnamed-chunk-12-1.png
 f5152918f3e29b05188b5210e1d344a3 *man/figures/README-unnamed-chunk-12-2.png
 3c5ec6bbde5c6f79f336a00d1972391e *man/figures/README-unnamed-chunk-2-1.pdf
-aa4059b95a458601a773f4f58a5f7ee7 *man/figures/README-unnamed-chunk-2-1.png
+a6306b61181c37e1ab80ee3632ef0287 *man/figures/README-unnamed-chunk-2-1.png
 cbe1e830edb851b9d815026225c737aa *man/figures/README-unnamed-chunk-4-1.pdf
-4a77876f668a3418adf6993e46a8d73f *man/figures/README-unnamed-chunk-4-1.png
-dcadf849c8818b3f0acbe6af6ae81d65 *man/figures/README-unnamed-chunk-5-1.png
+50ed312b29a7afeca9090b2f2550dd7d *man/figures/README-unnamed-chunk-4-1.png
+1c32cb8cfd3efb3717ef49c101cd4dba *man/figures/README-unnamed-chunk-5-1.png
 f67449c9bf0bb75460775efc6d77407f *man/figures/README-unnamed-chunk-6-1.pdf
 24eea1f36f262b41ab2c1a5d3a577f68 *man/figures/README-unnamed-chunk-6-1.png
 f74bdafed23288fa073f786ad5d85d8f *man/figures/README-unnamed-chunk-6-2.png
@@ -64,5 +64,5 @@ efa459cf4957f189183fdc4edf68f9a0 *tests/examples/examples_openGraphCairo_saveGra
 799bc9a46241a7a72a21861ed0f1bd49 *tests/examples/examples_visstat.R
 52f22b7b8cf3ccada651d65e0e25f4c1 *tests/examples/examples_visstat_plots.R
 88ea2e5fb5b0d13dfac5969fabe53518 *vignettes/figures/decision_tree.pptx
-cea6d2e68e54bc8a0c55e5b1d5d3ade2 *vignettes/visStatistics.Rmd
+e3e39931d161cb3a11cdfd30d73d3f5e *vignettes/visStatistics.Rmd
 514938d3cec48e2eb410d6f241206180 *vignettes/visstat.bib
