@@ -1,6 +1,7 @@
 ## ----include = FALSE----------------------------------------------------------
 knitr::opts_chunk$set(
   echo = TRUE,
+  eval = TRUE,
   collapse = TRUE,
   comment = "#>",
   fig.width = 8,
@@ -11,8 +12,33 @@ knitr::opts_chunk$set(
 ## ----setup--------------------------------------------------------------------
 library(visStatistics)
 
-## ----fig-decision-tree, fig.cap="Decision tree used to select the appropriate statistical test for a categorical predictor and numerical response, based on the number of factor levels, normality and homoscedasticity.", out.width="100%,fig.height =100% "----
-knitr::include_graphics("../man/figures/decision_tree.png")
+## ----fig-decision-switch, echo=FALSE, results='asis'--------------------------
+if (knitr::opts_knit$get("rmarkdown.pandoc.to") == "html") {
+  cat('
+<div style="border: 1px solid #666; padding: 10px; display: inline-block; text-align: center;">
+  <img src="../inst/figures/decision_tree.png" width="100%" 
+       alt="Decision tree used to select the appropriate statistical test.">
+  <p style="font-style: italic; font-size: 90%; margin-top: 0.5em;">
+    Decision tree used to select the appropriate statistical test for a categorical
+    predictor and numerical response, based on the number of factor levels, normality,
+    and homoscedasticity.
+  </p>
+</div>
+')
+} else {
+  cat('
+\\begin{center}
+\\fbox{%
+  \\begin{minipage}{0.95\\linewidth}
+    \\centering
+    \\includegraphics[width=\\linewidth]{../man/figures/decision_tree.png}\\\\
+    \\vspace{0.5em}
+    \\textit{Decision tree used to select the appropriate statistical test for a categorical predictor and numerical response, based on the number of factor levels, normality, and homoscedasticity.}
+  \\end{minipage}
+}
+\\end{center}
+')
+}
 
 ## -----------------------------------------------------------------------------
 mtcars$am <- as.factor(mtcars$am)
@@ -36,12 +62,13 @@ grades_gender <- data.frame(
 wilcoxon_statistics <- visstat(grades_gender, "grade", "sex")
 
 ## -----------------------------------------------------------------------------
-oneway_npk <- visstat(npk, "yield", "block")
+oneway_npk <- visstat(npk, "yield", "block",conf.level=0.99)
 
 ## -----------------------------------------------------------------------------
 insect_sprays_tr <- InsectSprays
 insect_sprays_tr$count_sqrt <- sqrt(InsectSprays$count)
-visstat(insect_sprays_tr, "count_sqrt", "spray")
+test_statistic_anova=visstat(insect_sprays_tr, "count_sqrt", "spray")
+# test_statistic_anova 
 
 ## -----------------------------------------------------------------------------
 visstat(iris, "Petal.Width", "Species")
@@ -59,11 +86,11 @@ linreg_trees <- visstat(trees, "Volume", "Girth", conf.level = 0.9)
 linreg_cars <- visstat(trees, "Volume", "Girth", conf.level = 0.9)
 
 ## -----------------------------------------------------------------------------
-HairEyeColorDataFrame <- counts_to_cases(as.data.frame(HairEyeColor))
+HairEyeColourDataFrame <- counts_to_cases(as.data.frame(HairEyeColor))
 
 ## -----------------------------------------------------------------------------
-hair_eye_color_df <- counts_to_cases(as.data.frame(HairEyeColor))
-visstat(hair_eye_color_df, "Hair", "Eye")
+hair_eye_colour_df <- counts_to_cases(as.data.frame(HairEyeColor))
+visstat(hair_eye_colour_df, "Hair", "Eye")
 
 ## -----------------------------------------------------------------------------
 hair_black_brown_eyes_brown_blue <- HairEyeColor[1:2, 1:2, ]
@@ -73,22 +100,23 @@ hair_black_brown_eyes_brown_blue_df <- counts_to_cases(as.data.frame(hair_black_
 visstat(hair_black_brown_eyes_brown_blue_df, "Hair", "Eye")
 
 ## -----------------------------------------------------------------------------
-hair_eye_color_male <- HairEyeColor[, , 1]
+hair_eye_colour_male <- HairEyeColor[, , 1]
 # Slice out a 2 by 2 contingency table
-black_brown_hazel_green_male <- hair_eye_color_male[1:2, 3:4]
+black_brown_hazel_green_male <- hair_eye_colour_male[1:2, 3:4]
 # Transform to data frame
 black_brown_hazel_green_male <- counts_to_cases(as.data.frame(black_brown_hazel_green_male))
 # Fisher test
 fisher_stats <- visstat(black_brown_hazel_green_male, "Hair", "Eye")
 
 ## -----------------------------------------------------------------------------
+#Graphical output written to plotDirectory: In this example 
+# a bar chart to visualise the Chi-squared test and mosaic plot showing
+# Pearson's residuals.
+#chi_squared_or_fisher_Hair_Eye.png and mosaic_complete_Hair_Eye.png
 visstat(black_brown_hazel_green_male, "Hair", "Eye",
-  graphicsoutput = "png", plotDirectory =
+  graphicsoutput = "png", plotDirectory = tempdir())
 
-    tempdir()
-)
-
-## -----------------------------------------------------------------------------
-file.remove(file.path(tempdir(), "chi_squared_or_fisher_Hair_Eye.png"))
-file.remove(file.path(tempdir(), "mosaic_complete_Hair_Eye.png"))
+## ----eval=FALSE---------------------------------------------------------------
+# file.remove(file.path(tempdir(), "chi_squared_or_fisher_Hair_Eye.png"))
+# file.remove(file.path(tempdir(), "mosaic_complete_Hair_Eye.png"))
 
