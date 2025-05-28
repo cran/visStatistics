@@ -12,15 +12,21 @@ knitr::opts_chunk$set(
 ## ----setup--------------------------------------------------------------------
 library(visStatistics)
 
+## ----install-github, eval = FALSE---------------------------------------------
+# install_github("shhschilling/visStatistics")
+
+## ----load, eval = FALSE-------------------------------------------------------
+# library(visStatistics)
+
 ## ----fig-decision-switch, echo=FALSE, results='asis'--------------------------
 if (knitr::opts_knit$get("rmarkdown.pandoc.to") == "html") {
   cat('
 <div style="border: 1px solid #666; padding: 10px; display: inline-block; text-align: center;">
-  <img src="../inst/figures/decision_tree.png" width="100%" 
+  <img src="figures/decision_tree.png" width="100%" 
        alt="Decision tree used to select the appropriate statistical test.">
   <p style="font-style: italic; font-size: 90%; margin-top: 0.5em;">
     Decision tree used to select the appropriate statistical test for a categorical
-    predictor and numerical response, based on the number of factor levels, normality,
+    predictor and numeric response, based on the number of factor levels, normality,
     and homoscedasticity.
   </p>
 </div>
@@ -33,7 +39,7 @@ if (knitr::opts_knit$get("rmarkdown.pandoc.to") == "html") {
     \\centering
     \\includegraphics[width=\\linewidth]{../man/figures/decision_tree.png}\\\\
     \\vspace{0.5em}
-    \\textit{Decision tree used to select the appropriate statistical test for a categorical predictor and numerical response, based on the number of factor levels, normality, and homoscedasticity.}
+    \\textit{Decision tree used to select the appropriate statistical test for a categorical predictor and numeric response, based on the number of factor levels, normality, and homoscedasticity.}
   \\end{minipage}
 }
 \\end{center}
@@ -42,11 +48,11 @@ if (knitr::opts_knit$get("rmarkdown.pandoc.to") == "html") {
 
 ## -----------------------------------------------------------------------------
 mtcars$am <- as.factor(mtcars$am)
-t_test_statistics <- visstat(mtcars, "mpg", "am")
+t_test_statistics <- visstat(mtcars$am, mtcars$mpg)
 
 ## -----------------------------------------------------------------------------
 mtcars$am <- as.factor(mtcars$am)
-t_test_statistics_99 <- visstat(mtcars, "mpg", "am", conf.level = 0.99)
+t_test_statistics_99 <- visstat(mtcars$am, mtcars$mpg, conf.level = 0.99)
 
 ## -----------------------------------------------------------------------------
 grades_gender <- data.frame(
@@ -59,45 +65,45 @@ grades_gender <- data.frame(
   )
 )
 
-wilcoxon_statistics <- visstat(grades_gender, "grade", "sex")
+wilcoxon_statistics <- visstat(grades_gender$sex, grades_gender$grade)
 
 ## -----------------------------------------------------------------------------
-oneway_npk <- visstat(npk, "yield", "block",conf.level=0.99)
+oneway_npk <- visstat(npk$block,npk$yield,conf.level=0.90)
 
 ## -----------------------------------------------------------------------------
 insect_sprays_tr <- InsectSprays
 insect_sprays_tr$count_sqrt <- sqrt(InsectSprays$count)
-test_statistic_anova=visstat(insect_sprays_tr, "count_sqrt", "spray")
+test_statistic_anova=visstat(insect_sprays_tr$spray, insect_sprays_tr$count_sqrt)
 # test_statistic_anova 
 
 ## -----------------------------------------------------------------------------
-visstat(iris, "Petal.Width", "Species")
+visstat(iris$Species, iris$Petal.Width)
 
 ## -----------------------------------------------------------------------------
-linreg_cars <- visstat(cars, "dist", "speed")
+linreg_cars <- visstat(cars$speed, cars$dist)
 
 ## -----------------------------------------------------------------------------
-linreg_cars <- visstat(cars, "dist", "speed", conf.level = 0.99)
+linreg_cars <- visstat(cars$speed,cars$dist, conf.level = 0.99)
 
 ## -----------------------------------------------------------------------------
-linreg_trees <- visstat(trees, "Volume", "Girth", conf.level = 0.9)
+linreg_trees <- visstat(trees$Girth, trees$Volume,conf.level = 0.9)
 
 ## -----------------------------------------------------------------------------
-linreg_cars <- visstat(trees, "Volume", "Girth", conf.level = 0.9)
+linreg_cars <- visstat(trees$Girth, trees$Volume, conf.level = 0.9)
 
 ## -----------------------------------------------------------------------------
 HairEyeColourDataFrame <- counts_to_cases(as.data.frame(HairEyeColor))
 
 ## -----------------------------------------------------------------------------
 hair_eye_colour_df <- counts_to_cases(as.data.frame(HairEyeColor))
-visstat(hair_eye_colour_df, "Hair", "Eye")
+visstat(hair_eye_colour_df$Eye, hair_eye_colour_df$Hair)
 
 ## -----------------------------------------------------------------------------
 hair_black_brown_eyes_brown_blue <- HairEyeColor[1:2, 1:2, ]
 # Transform to data frame
 hair_black_brown_eyes_brown_blue_df <- counts_to_cases(as.data.frame(hair_black_brown_eyes_brown_blue))
 # Chi-squared test
-visstat(hair_black_brown_eyes_brown_blue_df, "Hair", "Eye")
+visstat(hair_black_brown_eyes_brown_blue_df$Eye, hair_black_brown_eyes_brown_blue_df$Hair)
 
 ## -----------------------------------------------------------------------------
 hair_eye_colour_male <- HairEyeColor[, , 1]
@@ -106,7 +112,7 @@ black_brown_hazel_green_male <- hair_eye_colour_male[1:2, 3:4]
 # Transform to data frame
 black_brown_hazel_green_male <- counts_to_cases(as.data.frame(black_brown_hazel_green_male))
 # Fisher test
-fisher_stats <- visstat(black_brown_hazel_green_male, "Hair", "Eye")
+fisher_stats <- visstat(black_brown_hazel_green_male$Eye, black_brown_hazel_green_male$Hair)
 
 ## -----------------------------------------------------------------------------
 #Graphical output written to plotDirectory: In this example 
@@ -114,7 +120,7 @@ fisher_stats <- visstat(black_brown_hazel_green_male, "Hair", "Eye")
 # Pearson's residuals.
 #chi_squared_or_fisher_Hair_Eye.png and mosaic_complete_Hair_Eye.png
 visstat(black_brown_hazel_green_male, "Hair", "Eye",
-  graphicsoutput = "png", plotDirectory = tempdir())
+        graphicsoutput = "png", plotDirectory = tempdir())
 
 ## ----eval=FALSE---------------------------------------------------------------
 # file.remove(file.path(tempdir(), "chi_squared_or_fisher_Hair_Eye.png"))
