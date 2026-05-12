@@ -9,6 +9,7 @@ visstat_core(
   varsample,
   varfactor,
   conf.level = 0.95,
+  correlation = FALSE,
   numbers = TRUE,
   minpercent = 0.05,
   graphicsoutput = NULL,
@@ -31,6 +32,11 @@ is of class \code{numeric} or \code{integer}.}
 
 \item{conf.level}{Confidence level}
 
+\item{correlation}{Logical. If FALSE (default), performs simple
+linear regression analysis with confidence and prediction bands.
+If TRUE, performs Spearman correlation analysis with trend line only
+ (no regression interpretation).}
+
 \item{numbers}{a logical indicating whether to show numbers in mosaic count
 plots.}
 
@@ -50,16 +56,24 @@ parameter, plotName is automatically generated following the convention
 Default is current working directory.}
 }
 \value{
-\code{list} containing statistics of automatically selected test
-  meeting assumptions. All values are returned as invisible copies.
-  Values can be accessed by assigning a return value to \code{visstat_core}.
+An object of class \code{"visstat"} containing the results of 
+the automatically selected statistical test. The specific contents depend on
+ which test was performed.
+Additionally, the returned object includes two attributes:
+\itemize{
+  \item \code{plot_paths}: Character vector of file paths where plots were 
+    saved (if \code{graphicsoutput} was specified)
+  \item \code{captured_plots}: List of captured plot objects for programmatic 
+    access
+}
 }
 \description{
 \code{visstat_core()} provides automated selection and visualization 
 of a statistical hypothesis test between a two vectors in
 a given \code{data.frame} named \code{dataframe} based on the data's type, 
 distribution, sample size, and the
-specified \code{conf.level}.
+specified \code{conf.level}. \code{visstat_core()} is called by the main
+ wrapper function \code{visstat()}.
 \code{varsample} and \code{varfactor} are \code{character}
 strings corresponding to the column names of the chosen vectors in \code{dataframe}. 
 These vectors must be of type \code{integer}, \code{numeric} or \code{factor}.
@@ -70,7 +84,7 @@ applicable. The primary test results are returned as a list object.
 }
 \details{
 The decision logic for selecting a statistical test is described below.
-For more details, please refer to the package's \code{vignette("visstat_coreistics")}.
+For more details, please refer to the package's \code{vignette("visStatistics")}.
 Throughout, data of class \code{numeric} or \code{integer} are referred to as
 numeric, while data of class \code{factor} are referred to as categorical.
 The significance level \code{alpha} is defined as one minus the confidence
@@ -84,19 +98,8 @@ categorical variable, the distribution of the data, and the chosen
 tests that remain valid under their assumptions, following the logic below:
 
 (1) When the response is numerical and the predictor is categorical, tests of
-central tendency are performed. If the predictor has two levels:
-\code{t.test()} is used if both groups have more than 30 observations (Lumley
-et al. (2002) <doi:10.1146/annurev.publhealth.23.100901.140546>). For smaller
-samples, normality is assessed using \code{shapiro.test()}. If both groups
-return p-values greater than \code{alpha}, \code{t.test()} is applied;
-otherwise, \code{wilcox.test()} is used.
-For predictors with more than two levels, \code{aov()} is initially fitted.
-Residual normality is tested with \code{shapiro.test()} and \code{ad.test()}.
-If \code{p > alpha} for either test, normality is assumed. Homogeneity of
-variance is tested with \code{bartlett.test()}. If \code{p > alpha},
-\code{aov()} with \code{TukeyHSD()} is used. If \code{p <= alpha},
-\code{oneway.test()} is applied with \code{TukeyHSD()}. If residuals are not
-normal, \code{kruskal.test()} with \code{pairwise.wilcox.test()} is used.
+central tendencies are performed. For the decision logic, please refer to the 
+packages vignette \code{vignette("visStatistics")}
 
 (2): When both the response and predictor are numerical, a linear model
 \code{lm()} is fitted, with residual diagnostics and a confidence band plot.
@@ -114,12 +117,13 @@ Implemented main tests:
 Implemented tests for assumptions:
 \itemize{
   \item Normality: \code{shapiro.test()} and \code{ad.test()}
-  \item Heteroscedasticity: \code{bartlett.test()}
+  \item Heteroscedasticity: \code{bartlett.test()} and \code{levene.test()} and \code{bp_test()}
 }
 
 Implemented post hoc tests:
 \itemize{
-  \item \code{TukeyHSD()} for \code{aov()} and \code{oneway.test()}
+  \item \code{TukeyHSD()} for \code{aov()} 
+  \item \code{games.howell} for  \code{oneway.test()}
   \item \code{pairwise.wilcox.test()} for \code{kruskal.test()}
 }
 }
@@ -147,7 +151,7 @@ anova_npk # prints summary of tests
 visstat_core(iris, "Petal.Width", "Species")
 visstat_core(InsectSprays, "count", "spray")
 
-## Linear regression  (lm())
+## Simple linear regression  (lm())
 visstat_core(trees, "Girth", "Height", conf.level = 0.99)
 
 ## Pearson's Chi-squared test (chisq.test())
@@ -161,41 +165,12 @@ HairEyeColorMaleFisher <- HairEyeColor[, , 1]
 blackBrownHazelGreen <- HairEyeColorMaleFisher[1:2, 3:4]
 blackBrownHazelGreen <- counts_to_cases(as.data.frame(blackBrownHazelGreen))
 fisher_stats <- visstat_core(blackBrownHazelGreen, "Hair", "Eye")
-fisher_stats # print out summary statistics
-
-## Saving the graphical output in directory "plotDirectory"
-## A) Saving graphical output of type "png" in temporary directory tempdir()
-##    with default naming convention:
-visstat_core(blackBrownHazelGreen, "Hair", "Eye",
-  graphicsoutput = "png",
-  plotDirectory = tempdir()
-)
-
-## Remove graphical output from plotDirectory
-file.remove(file.path(tempdir(), "chi_squared_or_fisher_Hair_Eye.png"))
-file.remove(file.path(tempdir(), "mosaic_complete_Hair_Eye.png"))
-
-## B) Specifying pdf as output type:
-visstat_core(iris, "Petal.Width", "Species",
-  graphicsoutput = "pdf",
-  plotDirectory = tempdir()
-)
-
-## Remove graphical output from plotDirectory
-file.remove(file.path(tempdir(), "kruskal_Petal_Width_Species.pdf"))
-
-## C) Specifying "plotName" overwrites default naming convention
-visstat_core(iris, "Petal.Width", "Species",
-  graphicsoutput = "pdf",
-  plotName = "kruskal_iris", plotDirectory = tempdir()
-)
-## Remove graphical output from plotDirectory
-file.remove(file.path(tempdir(), "kruskal_iris.pdf"))
 
 }
 \seealso{
-See also the package's vignette
-\code{vignette("visStatistics")} for the overview,
-and the accompanying webpage
-\url{https://shhschilling.github.io/visStatistics/}.
+The package's vignette
+\code{vignette("visStatistics")} for a description of the 
+decision logic, illustrated with numerous examples. The package is accompanied 
+by its webpage
+\url{https://shhschilling.github.io/visStatistics/}. The main function \code{\link{visstat}} for a detailed description of the return value.
 }

@@ -10,7 +10,8 @@
 #' of a statistical hypothesis test between a two vectors in
 #' a given \code{data.frame} named \code{dataframe} based on the data's type, 
 #' distribution, sample size, and the
-#' specified \code{conf.level}.
+#' specified \code{conf.level}. \code{visstat_core()} is called by the main
+#'  wrapper function \code{visstat()}.
 #' \code{varsample} and \code{varfactor} are \code{character}
 #' strings corresponding to the column names of the chosen vectors in \code{dataframe}. 
 #' These vectors must be of type \code{integer}, \code{numeric} or \code{factor}.
@@ -20,7 +21,7 @@
 #' applicable. The primary test results are returned as a list object.
 #'
 #' @details The decision logic for selecting a statistical test is described below.
-#' For more details, please refer to the package's \code{vignette("visstat_coreistics")}.
+#' For more details, please refer to the package's \code{vignette("visStatistics")}.
 #' Throughout, data of class \code{numeric} or \code{integer} are referred to as
 #' numeric, while data of class \code{factor} are referred to as categorical.
 #' The significance level \code{alpha} is defined as one minus the confidence
@@ -34,19 +35,8 @@
 #' tests that remain valid under their assumptions, following the logic below:
 #' 
 #' (1) When the response is numerical and the predictor is categorical, tests of
-#' central tendency are performed. If the predictor has two levels:
-#' \code{t.test()} is used if both groups have more than 30 observations (Lumley
-#' et al. (2002) <doi:10.1146/annurev.publhealth.23.100901.140546>). For smaller
-#' samples, normality is assessed using \code{shapiro.test()}. If both groups
-#' return p-values greater than \code{alpha}, \code{t.test()} is applied;
-#' otherwise, \code{wilcox.test()} is used.
-#' For predictors with more than two levels, \code{aov()} is initially fitted.
-#' Residual normality is tested with \code{shapiro.test()} and \code{ad.test()}.
-#' If \code{p > alpha} for either test, normality is assumed. Homogeneity of
-#' variance is tested with \code{bartlett.test()}. If \code{p > alpha},
-#' \code{aov()} with \code{TukeyHSD()} is used. If \code{p <= alpha},
-#' \code{oneway.test()} is applied with \code{TukeyHSD()}. If residuals are not
-#' normal, \code{kruskal.test()} with \code{pairwise.wilcox.test()} is used.
+#' central tendencies are performed. For the decision logic, please refer to the 
+#' packages vignette \code{vignette("visStatistics")}
 #' 
 #' (2): When both the response and predictor are numerical, a linear model
 #' \code{lm()} is fitted, with residual diagnostics and a confidence band plot.
@@ -64,19 +54,21 @@
 #' Implemented tests for assumptions:
 #' \itemize{
 #'   \item Normality: \code{shapiro.test()} and \code{ad.test()}
-#'   \item Heteroscedasticity: \code{bartlett.test()}
+#'   \item Heteroscedasticity: \code{bartlett.test()} and \code{levene.test()} and \code{bp_test()}
 #' }
 #' 
 #' Implemented post hoc tests:
 #' \itemize{
-#'   \item \code{TukeyHSD()} for \code{aov()} and \code{oneway.test()}
+#'   \item \code{TukeyHSD()} for \code{aov()} 
+#'   \item \code{games.howell} for  \code{oneway.test()}
 #'   \item \code{pairwise.wilcox.test()} for \code{kruskal.test()}
 #' }
 #' @seealso
-#' See also the package's vignette
-#' \code{vignette("visStatistics")} for the overview,
-#' and the accompanying webpage
-#' \url{https://shhschilling.github.io/visStatistics/}.
+#' The package's vignette
+#' \code{vignette("visStatistics")} for a description of the 
+#' decision logic, illustrated with numerous examples. The package is accompanied 
+#' by its webpage
+#' \url{https://shhschilling.github.io/visStatistics/}. The main function \code{\link{visstat}} for a detailed description of the return value.  
 #'
 #' @param dataframe \code{data.frame} with at least two columns.
 #' @param varsample \code{character} string matching a column name in 
@@ -88,6 +80,10 @@
 #'   column is of class \code{factor} and the column named by \code{varsample} 
 #'   is of class \code{numeric} or \code{integer}.
 #' @param conf.level Confidence level
+#' @param correlation Logical. If FALSE (default), performs simple
+#' linear regression analysis with confidence and prediction bands.
+#' If TRUE, performs Spearman correlation analysis with trend line only
+#'  (no regression interpretation).
 #' @param numbers a logical indicating whether to show numbers in mosaic count
 #'   plots.
 #' @param minpercent number between 0 and 1 indicating minimal fraction of total
@@ -101,10 +97,16 @@
 #'   "statisticalTestName_varsample_varfactor".
 #' @param plotDirectory specifies directory, where generated plots are stored.
 #'   Default is current working directory.
-#' @return \code{list} containing statistics of automatically selected test
-#'   meeting assumptions. All values are returned as invisible copies.
-#'   Values can be accessed by assigning a return value to \code{visstat_core}.
-
+#' @return An object of class \code{"visstat"} containing the results of 
+#' the automatically selected statistical test. The specific contents depend on
+#'  which test was performed.
+#' Additionally, the returned object includes two attributes:
+#' \itemize{
+#'   \item \code{plot_paths}: Character vector of file paths where plots were 
+#'     saved (if \code{graphicsoutput} was specified)
+#'   \item \code{captured_plots}: List of captured plot objects for programmatic 
+#'     access
+#' }
 #' @examples
 #' # Welch Two Sample t-test (t.test())
 #' visstat_core(mtcars, "mpg", "am")
@@ -129,7 +131,7 @@
 #' visstat_core(iris, "Petal.Width", "Species")
 #' visstat_core(InsectSprays, "count", "spray")
 #'
-#' ## Linear regression  (lm())
+#' ## Simple linear regression  (lm())
 #' visstat_core(trees, "Girth", "Height", conf.level = 0.99)
 #'
 #' ## Pearson's Chi-squared test (chisq.test())
@@ -143,36 +145,8 @@
 #' blackBrownHazelGreen <- HairEyeColorMaleFisher[1:2, 3:4]
 #' blackBrownHazelGreen <- counts_to_cases(as.data.frame(blackBrownHazelGreen))
 #' fisher_stats <- visstat_core(blackBrownHazelGreen, "Hair", "Eye")
-#' fisher_stats # print out summary statistics
-#'
-#' ## Saving the graphical output in directory "plotDirectory"
-#' ## A) Saving graphical output of type "png" in temporary directory tempdir()
-#' ##    with default naming convention:
-#' visstat_core(blackBrownHazelGreen, "Hair", "Eye",
-#'   graphicsoutput = "png",
-#'   plotDirectory = tempdir()
-#' )
-#'
-#' ## Remove graphical output from plotDirectory
-#' file.remove(file.path(tempdir(), "chi_squared_or_fisher_Hair_Eye.png"))
-#' file.remove(file.path(tempdir(), "mosaic_complete_Hair_Eye.png"))
-#'
-#' ## B) Specifying pdf as output type:
-#' visstat_core(iris, "Petal.Width", "Species",
-#'   graphicsoutput = "pdf",
-#'   plotDirectory = tempdir()
-#' )
-#'
-#' ## Remove graphical output from plotDirectory
-#' file.remove(file.path(tempdir(), "kruskal_Petal_Width_Species.pdf"))
-#'
-#' ## C) Specifying "plotName" overwrites default naming convention
-#' visstat_core(iris, "Petal.Width", "Species",
-#'   graphicsoutput = "pdf",
-#'   plotName = "kruskal_iris", plotDirectory = tempdir()
-#' )
-#' ## Remove graphical output from plotDirectory
-#' file.remove(file.path(tempdir(), "kruskal_iris.pdf"))
+
+
 #'
 #' @import vcd
 #' @import Cairo
@@ -187,17 +161,24 @@
 
 
 visstat_core <- function(dataframe,
-                    varsample,
-                    varfactor,
-                    conf.level = 0.95,
-                    numbers = TRUE,
-                    minpercent = 0.05,
-                    graphicsoutput = NULL,
-                    plotName = NULL,
-                    plotDirectory = getwd()) {
+                         varsample,
+                         varfactor,
+                         conf.level = 0.95,
+                         correlation = FALSE,
+                         numbers = TRUE,
+                         minpercent = 0.05,
+                         graphicsoutput = NULL,
+                         plotName = NULL,
+                         plotDirectory = getwd()) {
   stopifnot(is.data.frame(dataframe))
   stopifnot(varsample %in% names(dataframe))
   stopifnot(varfactor %in% names(dataframe))
+  
+  
+  
+  capture_env <- new.env()
+  capture_env$captured_plots <- list() #restart list of caputre plots 
+  #capture_env$capture_next_plot <- FALSE
   
   
   
@@ -206,9 +187,10 @@ visstat_core <- function(dataframe,
   oldparvisstat_core$new <- FALSE # reset the default value
   on.exit(par(oldparvisstat_core))
   
+  
   # Collect plot paths from plot_paths <- c(plot_paths, saveGraphVisstat())
   plot_paths <- character(0)
-   
+  
   # Set default values---------------------------
   alpha <- 1 - conf.level
   
@@ -222,6 +204,33 @@ visstat_core <- function(dataframe,
   name_of_factor <- input$name_of_factor
   matchingCriteria <- input$matchingCriteria
   
+  # Detect ordered x ordered case:
+  # Only route to Kendall's tau-b when correlation=TRUE; otherwise treat as
+  # ordered response + factor predictor (Wilcoxon/Kruskal-Wallis).
+  # For ordered response with non-ordered predictor we always convert to
+  # numeric ranks and route to the non-parametric pathway.
+  ordinal_response <- FALSE
+  both_ordered <- is.ordered(samples) && is.ordered(fact)
+  use_kendall   <- both_ordered && correlation
+
+  if (both_ordered && !correlation && nlevels(fact) > 4) {
+    warning(
+      "Ordered predictor with ", nlevels(fact), " levels detected. ",
+      "Kruskal-Wallis discards the ordering of the predictor. ",
+      "If a monotone association is of interest, consider correlation = TRUE ",
+      "for Kendall's tau_b.",
+      call. = FALSE
+    )
+  }
+
+  if (is.ordered(samples) && (!both_ordered || !correlation)) {
+    warning("Ordered response detected. Converting to integer level codes for non-parametric analysis.", call. = FALSE)
+    samples <- as.numeric(samples)
+    ordinal_response <- TRUE  # Flag to force non-parametric
+  }
+  
+  vis_sample_fact <- list()
+  
   # dependent on samples, fact, name_of_sample, name_of_factor, conf.level,
   
   typesample <- class(samples)
@@ -230,7 +239,7 @@ visstat_core <- function(dataframe,
   
   
   # transform independent variable "fact" of class "character" to factor
-  if (typefactor == "character") {
+  if (inherits(fact, "character")) {
     fact <-
       as.factor(fact) # transform  "fact" of class "character" to factor
     typefactor <- class(fact) # store the class of type "factor"
@@ -238,177 +247,254 @@ visstat_core <- function(dataframe,
   
   #  Check order 
   
-  if ((typefactor == "numeric" || typefactor == "integer") && typesample == "factor") {
+  if ((inherits(fact, "numeric") || inherits(fact, "integer")) && inherits(samples, "factor")) {
     stop("A numeric or integer predictor with a factor response is ignored.")
   }
   
   maxlabels <- length(levels(samples))
-  ## Comparison of all  possible combinations of input variables --------------
-  ## A) median or mean-----
-  # requirement: only two levels of factors
-  # if the chosen "sample" is numeric or integer, we can perform parametric tests
-  # like the t-test (if the assumption of normal distribution is met )
-  # otherwise Wilcoxon test
-  
-  if ((
-    # Wilcoxon or t-test -----
-    typesample == "integer" | typesample == "numeric"
-  ) &&
-  (typefactor == "factor") && nlevels(fact) == 2) {
-    # check if there is at least one entry in each group, if not return empty
-    twosamples <-
-      create_two_samples_vector(samples, fact) # returns list with three entries
-    if (length(twosamples) < 3) {
-      vis_sample_fact <-
-        warning("In each group must be at least one member.")
+  #  Comparison of all  possible combinations of input variables ----
+  #  
+  #  
+  ## A) median or mean-------
+  # --- Numeric vs Factor Logic with Original Error Catching ---
+  if ((inherits(samples, "integer") | inherits(samples, "numeric")) &&
+      inherits(fact, "factor") && nlevels(fact) >= 2) {
+    
+    # Pre-check: Original error handling for insufficient data
+    counts_per_level <- table(fact)
+    if (any(counts_per_level < 1) | length(samples) < 3) {
+      warning("In each group must be at least one member and total sample size >= 3.", call. = FALSE)
+      vis_sample_fact <- list(
+        error = "Insufficient data",
+        input_summary = list(sample_name = name_of_sample, factor_name = name_of_factor)
+      )
+      attr(vis_sample_fact, "plot_paths") <- plot_paths
+      class(vis_sample_fact) <- "visstat"
+      return(vis_sample_fact)
+    }
+    
+    # Check if response was originally ordinal - force non-parametric
+    if (ordinal_response) {
+      normality_met <- FALSE
     } else {
-      # t-Test -----
-      x1 <- twosamples$sample1
-      x2 <- twosamples$sample2
-      # The two-sample t-test is robust to non-normality due to
-      # the central limit theorem.->
-      # Checking for normality of samples not necessary,if sample size roughly >30
-      # citation: THE IMPORTANCE OF THE NORMALITY ASSUMPTION IN LARGE PUBLIC
-      # HEALTH DATA SETS
-      # DOI: 10.1146/annurev.publhealth.23.100901.140546
-      #
-      # Check normality of both samples with Shapiro -Test-----
-      # Check assumptions of Shapiro-Test:length between 3 and 5000,
-      # at least one level returns TRUE if size between 3 and 50000
-      #
-      # There are two different ways to justify the use of the t-test:
-      # 1.Data is normally distributed and you have at least two samples per group
-      # 2. You have large (N>30)sample sizes in each group.
+      # MANDATORY DIAGNOSTIC: Provide visual evidence for the decision pipeline
+      openGraphCairo(type = graphicsoutput, fileDirectory = plotDirectory) 
+      vis_lm_assumptions(samples, fact, cex = 0.8)
       
-      shapiro_assumptions1 <- check_assumptions_shapiro(x1)
-      shapiro_assumptions2 <- check_assumptions_shapiro(x2)
-      
-      if (shapiro_assumptions1 == TRUE) {
-        p1 <- test_norm(twosamples$sample1)
-      }
-      
-      if (shapiro_assumptions2 == TRUE) {
-        p2 <- test_norm(twosamples$sample2)
-      }
-      # Check if normal distributions are given in both samples by Shapiro --
-      # Assume normal distributions if the p-value is greater alpha
-      # Perform always t-test if both samples are >30
-      
-      if (length(twosamples$sample1) > 30 &
-          length(twosamples$sample2) > 30) {
-        openGraphCairo(type = graphicsoutput, fileDirectory = plotDirectory)
-        vis_sample_fact <- two_sample_t_test(
-          samples,
-          fact,
-          alternative = c("two.sided"),
-          paired = FALSE,
-          var.equal = FALSE,
-          conf.level = conf.level,
-          samplename = name_of_sample,
-          factorname = name_of_factor
-        )
-        
-        if (is.null(plotName)) {
-          filename <-
-            paste("ttest_", name_of_sample, "_", name_of_factor, sep = "")
-        } else {
-          filename <- plotName
-        }
-        plot_paths <- c(plot_paths, saveGraphVisstat(filename, type = graphicsoutput, fileDirectory = plotDirectory))
-      }
-      # 2. If assumptions of t-test are not met: Wilcoxon, else t-test
-      else if (!exists("p1") |
-               (if (exists("p1")) {
-                 p1$p.value < alpha
-               } else {
-                 FALSE
-               }) |
-               !exists("p2") |
-               (if (exists("p2")) {
-                 (p2$p.value < alpha)
-               } else {
-                 FALSE
-               })) {
-        # case 1: Wilcoxon-Test:
-        # normal distribution not given for n<limit
-        openGraphCairo(type = graphicsoutput, fileDirectory = plotDirectory)
-        
-        vis_sample_fact <- two_sample_wilcoxon_test(
-          samples,
-          fact,
-          alternative = "two.sided",
-          conf.level = conf.level,
-          notchf = F,
-          samplename = varsample,
-          # factorname = matchingCriteria,
-          factorname = varfactor,
-          cex = 1
-        )
-        
-        
-        if (is.null(plotName)) {
-          filename <-
-            paste("wilcoxon-test_",
-                  name_of_sample,
-                  "_",
-                  name_of_factor,
-                  sep = "")
-        } else {
-          filename <- plotName
-        }
-        
-        
-        plot_paths <- c(plot_paths, saveGraphVisstat(fileName = filename,
-                         type = graphicsoutput,
-                         fileDirectory = plotDirectory))
+      if (is.null(plotName)) {
+        filename <- paste("glm_assumptions_", name_of_sample, "_", name_of_factor, sep = "")
       } else {
-        openGraphCairo(type = graphicsoutput, fileDirectory = plotDirectory)
-        
-        vis_sample_fact <- two_sample_t_test(
-          samples,
-          fact,
-          alternative = "two.sided",
-          paired = F,
-          var.equal = F,
-          conf.level = conf.level,
-          samplename = varsample,
-          factorname = varfactor
-        )
-        
-        if (is.null(plotName)) {
-          filename <-
-            paste("ttest_", name_of_sample, "_", name_of_factor, sep = "")
-        } else {
-          filename <- plotName
-        }
-        
-        plot_paths <- c(plot_paths, saveGraphVisstat(fileName = filename,
-                         type = graphicsoutput,
-                         fileDirectory = plotDirectory))
+        filename <- paste("glm_assumptions_", plotName, sep = "")
       }
+      plot_paths <- c(plot_paths, saveGraphVisstat(fileName = filename, type = graphicsoutput, 
+                                                   fileDirectory = plotDirectory, capture_env = capture_env))
       
-      # attr(vis_sample_fact, "plot_paths") <- plot_paths
-      # class(vis_sample_fact) <- "visstat"
-      # return(invisible(vis_sample_fact))
+      # Decision logic gate
+      all_groups_large <- all(counts_per_level > 50)
+      
+      if (all_groups_large) {
+        normality_met <- TRUE 
+      } else {
+        current_model <- lm(samples ~ fact)
+        std_resids <- rstandard(current_model) #this is already part of the output of vis_lm_assumptions
+        normality_met <- shapiro.test(std_resids)$p.value >= alpha
+      }
+    }
+    
+    # Testing and Visualization steps
+    if (!normality_met) {
+      # --- NON-PARAMETRIC BRANCH ---
+      openGraphCairo(type = graphicsoutput, fileDirectory = plotDirectory) 
+      if (nlevels(fact) == 2) {
+        vis_sample_fact <- two_sample_wilcoxon_test(samples, fact, conf.level = conf.level, 
+                                                    samplename = varsample, factorname = varfactor)
+        if (is.null(plotName)) {
+          filename <- paste("wilcoxon_", name_of_sample, "_", name_of_factor, sep = "")
+        } else {
+          filename <- paste(plotName)
+        }
+      } else {
+        vis_sample_fact <- vis_Kruskal_Wallis(samples, fact, conf.level = conf.level, 
+                                              samplename = varsample, factorname = varfactor)
+        if (is.null(plotName)) {
+          filename <- paste("kruskal_", name_of_sample, "_", name_of_factor, sep = "")
+        } else {
+          filename <- paste(plotName)
+        }
+      }
+      plot_paths <- c(plot_paths, saveGraphVisstat(fileName = filename, type = graphicsoutput, 
+                                                   fileDirectory = plotDirectory, capture_env = capture_env))
+    } else {
+      # --- PARAMETRIC BRANCH ---
+      var_p <- levene.test(samples, fact)$p.value
+      if (nlevels(fact) == 2) {
+        # Group-wise normality diagnostics for Welch t-tests
+        # visualization of normality assumption per group
+        if (var_p < alpha) {
+          openGraphCairo(type = graphicsoutput, fileDirectory = plotDirectory)
+          vis_group_normality(samples, fact, conf.level = conf.level, cex = 0.8)
+          
+          if (is.null(plotName)) {
+            filename <- paste("ttest_assumptions_", name_of_sample, "_", name_of_factor, sep = "")
+          } else {
+            filename <- paste("ttest_assumptions_", plotName, sep = "")
+          }
+          plot_paths <- c(plot_paths, saveGraphVisstat(fileName = filename, type = graphicsoutput,
+                                                       fileDirectory = plotDirectory, capture_env = capture_env))
+        }
+        # Final t-test execution
+        openGraphCairo(type = graphicsoutput, fileDirectory = plotDirectory) 
+        vis_sample_fact <- two_sample_t_test(samples, fact, var.equal = (var_p >= alpha), 
+                                             conf.level = conf.level, samplename = varsample, 
+                                             factorname = varfactor)
+        if (is.null(plotName)) {
+          filename <- paste("ttest_", name_of_sample, "_", name_of_factor, sep = "")
+        } else {
+          filename <- paste(plotName)
+        }
+        plot_paths <- c(plot_paths, saveGraphVisstat(fileName = filename, type = graphicsoutput, 
+                                                     fileDirectory = plotDirectory, capture_env = capture_env))
+      } else {
+        # ANOVA execution (Fisher/Welch and Post-hoc handled internally)
+        # 
+        if (var_p < alpha) {
+          # Unequal variances - will use Welch ANOVA, show normality per group
+          openGraphCairo(type = graphicsoutput, fileDirectory = plotDirectory)
+          vis_group_normality(samples, fact, conf.level = conf.level, cex = 0.8)
+          
+          if (is.null(plotName)) {
+            filename <- paste("anova_assumptions_", name_of_sample, "_", name_of_factor, sep = "")
+          } else {
+            filename <- paste("anova_assumptions_", plotName, sep = "")
+          }
+          plot_paths <- c(plot_paths, saveGraphVisstat(fileName = filename, type = graphicsoutput,
+                                                       fileDirectory = plotDirectory, capture_env = capture_env))
+        }
+        openGraphCairo(type = graphicsoutput, fileDirectory = plotDirectory) 
+        vis_sample_fact <- vis_anova(samples, fact, samplename = varsample, 
+                                     factorname = varfactor, conf.level = conf.level)
+        if (is.null(plotName)) {
+          filename <- paste("anova_", name_of_sample, "_", name_of_factor, sep = "")
+        } else {
+          filename <- paste(plotName)
+        }
+        plot_paths <- c(plot_paths, saveGraphVisstat(fileName = filename, type = graphicsoutput, 
+                                                     fileDirectory = plotDirectory, capture_env = capture_env))
+      }
     }
   }
   
   
-  
-  
-  
-  ## B) Chi2 and Mosaic-----
-  
-  if (typefactor == "factor" && typesample == "factor") {
+  ## B) Both variables of class factor -----
+  ##
+  ## "ordered" is a subclass of "factor", so the factor-x-factor branch
+  ## handles two sub-cases:
+  ##   B.1) both ordered AND correlation=TRUE -> Kendall's tau-b rank correlation
+  ##   B.2) at least one nominal, or both ordered but correlation=FALSE
+  ##        -> Chi^2 / Fisher exact test (ordered response already converted above)
+
+  if (inherits(fact, "factor") && inherits(samples, "factor")) {
+
+    if (use_kendall) {
+      ## ----- B.1) Both ordered + correlation=TRUE: Kendall's tau-b -----
+      ##
+      ## Treating ordered levels as nominal would discard the ordering
+      ## and lose power against a monotone trend. Kendall's tau-b
+      ## handles tied ranks (unavoidable with few levels, e.g. Likert)
+      ## more accurately than Spearman's rho (Agresti 2010, ch. 2;
+      ## Kendall 1945).
+      samples_num <- as.numeric(samples)
+      fact_num    <- as.numeric(fact)
+
+      kendall_test <- suppressWarnings(
+        cor.test(samples_num, fact_num,
+                 method = "kendall", exact = FALSE,
+                 conf.level = conf.level)
+      )
+
+      # Plot 1: jittered rank-rank scatter
+      # Title via mtext() (outer margin) to match the font used by all other
+      # test functions; no "(n=...)" — no other test reports sample size there.
+      openGraphCairo(type = graphicsoutput, fileDirectory = plotDirectory)
+      # Adaptive left margin: las=1 prints y-axis labels horizontally.
+      # strwidth() measures actual rendered width in inches (device already open);
+      # dividing by par("csi") converts to margin lines. +2 for tick gap + ylab.
+      max_ylabel_in <- max(strwidth(as.character(levels(samples)), units = "inches"))
+      label_lines   <- ceiling(max_ylabel_in / par("csi"))  # lines for tick text
+      ylab_line     <- label_lines + 1                       # ylab 1 line beyond
+      left_mar      <- max(5, ylab_line + 1)                 # margin + 1 buffer
+      op <- par(oma = c(0, 0, 3, 0), mar = c(5, left_mar, 4, 2) + 0.1)
+
+      # Colour by x-axis group (fact levels), consistent with boxplot/Kruskal.
+      # Semi-transparency preserved so overlapping points show as darker shades.
+      n_x <- length(levels(fact))
+      if (n_x <= 2) {
+        base_cols <- colorscheme(1)
+      } else if (n_x <= length(colorscheme(3)) + 2) {
+        base_cols <- c(colorscheme(1), head(colorscheme(3), n_x - 2))
+      } else {
+        base_cols <- rainbow(n_x, s = 0.4, alpha = 1)
+      }
+      point_cols <- adjustcolor(base_cols[fact_num], alpha.f = 0.6)
+
+      # ylab placed via mtext() so it sits at the outer margin edge, clear of
+      # the horizontal tick labels (las=1). Using plot(ylab=...) would anchor
+      # it at mgp[1]=3 lines — inside the tick text for any label >2 lines wide.
+      plot(jitter(fact_num,    amount = 0.15),
+           jitter(samples_num, amount = 0.15),
+           xlab = name_of_factor,
+           ylab = "",
+           xaxt = "n", yaxt = "n",
+           pch = 19, col = point_cols)
+      axis(1, at = seq_along(levels(fact)),    labels = levels(fact))
+      axis(2, at = seq_along(levels(samples)), labels = levels(samples), las = 1)
+      mtext(name_of_sample, side = 2, line = ylab_line, las = 0)
+      mtext(bquote("Kendall's" ~ tau[b] ~ "=" ~
+                     .(round(kendall_test$estimate, 3))), line = 2)
+      mtext(bquote("p =" ~ .(signif(kendall_test$p.value, 3))),  line = 1)
+      par(op)
+
+      if (is.null(plotName)) {
+        filename <- paste("kendall_", name_of_sample, "_", name_of_factor, sep = "")
+      } else {
+        filename <- paste(plotName, "_kendall", sep = "")
+      }
+      plot_paths <- c(plot_paths, saveGraphVisstat(fileName = filename,
+                                                   type = graphicsoutput,
+                                                   fileDirectory = plotDirectory,
+                                                   capture_env = capture_env))
+
+      # No mosaic for Kendall: shade=FALSE + ordered factors renders all tiles
+      # black; and the jitter scatter already captures the rank structure.
+
+      # cor.test returns class "htest" with $method, $p.value, ... so we put
+      # it directly under $test for print.visstat / summary.visstat.
+      kendall_test$data.name <- paste(name_of_sample, "and", name_of_factor)
+      vis_sample_fact <- list(
+        test             = kendall_test,
+        n                = length(samples_num),
+        levels_response  = levels(samples),
+        levels_predictor = levels(fact)
+      )
+
+    } else {
+      ## ----- B.2) At least one nominal: Chi^2 / Fisher -----
     if (check_assumptions_count_data(samples, fact) == FALSE) {
-      vis_sample_fact <-
+      # vis_sample_fact <-
+      #   makeTable(samples, fact, name_of_sample, name_of_factor)
+      vis_sample_fact <- tryCatch({
         makeTable(samples, fact, name_of_sample, name_of_factor)
+      }, error = function(e) {
+        list(error = paste("Failed to create contingency table:", e$message))
+      })
+      
+      
     } else {
       # Chi^2 Test-----
-      openGraphCairo(type = graphicsoutput, fileDirectory = plotDirectory)
+      openGraphCairo(type = graphicsoutput,fileDirectory = plotDirectory) 
       
       vis_chi <-
-        vis_chi_squared_test(samples, fact, name_of_sample, "groups")
+        vis_chi_squared_test(samples, fact, name_of_sample, name_of_factor)
       if (is.null(plotName)) {
         filename <- paste("chi_squared_or_fisher_",
                           name_of_sample,
@@ -420,98 +506,120 @@ visstat_core <- function(dataframe,
       }
       
       plot_paths <- c(plot_paths, saveGraphVisstat(fileName = filename,
-                       type = graphicsoutput,
-                       fileDirectory = plotDirectory))
-      # Mosaic plots -----
-      # a) complete labeled mosaic graph
-      
-      if (maxlabels > 7) {
-        numberflag <- F
-      } else {
-        numberflag <- T
-      }
-      
-      openGraphCairo(type = graphicsoutput, fileDirectory = plotDirectory)
-      
-      vis_mosaic_res <- vis_mosaic(
-        samples,
-        fact,
-        name_of_sample = name_of_sample,
-        name_of_factor = name_of_factor,
-        minperc = 0,
-        numbers = numberflag
-      )
-      
-      
-      
-      if (is.null(plotName)) {
-        filename <- paste("mosaic_complete_",
-                          name_of_sample,
-                          "_",
-                          name_of_factor,
-                          sep = "")
-      } else {
-        filename <- paste(plotName, "_", "mosaic_complete", sep = "")
-      }
-      
-      
-      
-      plot_paths <- c(plot_paths, saveGraphVisstat(filename, type = graphicsoutput, fileDirectory = plotDirectory))
-      
-      # b) reduced plots if number of of levels>7
-      # Display only categories with at least minpercent of entries
-      
-      if (maxlabels > 7) {
+                                                   type = graphicsoutput,
+                                                   fileDirectory = plotDirectory,capture_env = capture_env))
+      # Mosaic plots: only for Pearson chi-square without Yates correction
+      # (not Fisher's exact test, not Yates-corrected 2x2 tables)
+      is_fisher <- isTRUE(grepl("Fisher", vis_chi$method, ignore.case = TRUE))
+      is_yates  <- isTRUE(grepl("Yates",  vis_chi$method, ignore.case = TRUE))
+      vis_mosaic_res <- NULL
+
+      if (!is_fisher && !is_yates) {
+        # a) complete labeled mosaic graph
+        if (maxlabels > 7) {
+          numberflag <- FALSE
+        } else {
+          numberflag <- TRUE
+        }
+
         openGraphCairo(type = graphicsoutput, fileDirectory = plotDirectory)
-        
+
         vis_mosaic_res <- vis_mosaic(
           samples,
           fact,
           name_of_sample = name_of_sample,
-          name_of_factor = "groups",
-          minperc = minpercent,
-          numbers = T
+          name_of_factor = name_of_factor,
+          minperc = 0,
+          numbers = numberflag,
+          shade = !grepl("Yates", vis_chi$method, ignore.case = TRUE)
         )
-        plot_paths <- c(plot_paths, saveGraphVisstat(
-          paste(
-            "mosaic_reduced_",
-            name_of_sample,
-            "_",
-            name_of_factor,
-            sep = ""
-          )),
-          type = graphicsoutput,
-          fileDirectory = plotDirectory
-        )
+
+        if (is.null(plotName)) {
+          filename <- paste("mosaic_complete_", name_of_sample, "_", name_of_factor, sep = "")
+        } else {
+          filename <- paste(plotName, "_", "mosaic_complete", sep = "")
+        }
+
+        plot_paths <- c(plot_paths, saveGraphVisstat(filename, type = graphicsoutput,
+                                                     fileDirectory = plotDirectory,
+                                                     capture_env = capture_env))
+
+        # b) reduced mosaic if many levels
+        if (maxlabels > 7) {
+          openGraphCairo(type = graphicsoutput, fileDirectory = plotDirectory)
+
+          vis_mosaic_res <- vis_mosaic(
+            samples,
+            fact,
+            name_of_sample = name_of_sample,
+            name_of_factor = "groups",
+            minperc = minpercent,
+            numbers = TRUE,
+            shade = !grepl("Yates", vis_chi$method, ignore.case = TRUE)
+          )
+          plot_paths <- c(plot_paths, saveGraphVisstat(
+            paste("mosaic_reduced_", name_of_sample, "_", name_of_factor, sep = ""),
+            type = graphicsoutput,
+            fileDirectory = plotDirectory,
+            capture_env = capture_env
+          ))
+        }
       }
-      
+
       vis_sample_fact <- c(vis_chi, vis_mosaic_res)
     }
-  }
+    }  # end B.2 (nominal Chi^2 / Fisher)
+  }    # end B (factor x factor)
   # C) both types numerical: Regression-----
   
   # Both samples and fact of type integer or numeric
   # Regression
   #
   #
-  if ((typefactor == "integer" |
-       typefactor == "numeric") &&
-      (typesample == "integer" | typesample == "numeric")) {
+  if ((inherits(fact, "integer") | inherits(fact, "numeric")) &&
+      (inherits(samples, "integer") | inherits(samples, "numeric"))) {
+    
     # samples: independent variable, factor: dependent   variable
     # check normality
-    normality_residual_assumptioon <-
-      vis_normality_assumptions(samples, fact, conf.level = conf.level)
+    # 
+    openGraphCairo(type = graphicsoutput,fileDirectory = plotDirectory
+    ) 
     
-    openGraphCairo(type = graphicsoutput, fileDirectory = plotDirectory)
     
-    vis_sample_fact <- vis_regression(
+    normality_residual_assumption <-
+      vis_lm_assumptions(samples, fact,cex = 0.8,regression = TRUE)
+    
+    
+    
+    
+    if (is.null(plotName)) {
+      filename <-
+        paste("glm_assumptions_", varsample, "_", varfactor, sep = "")
+    } else {
+      filename <-  paste("glm_assumptions_",plotName)
+    }
+    
+    plot_paths <- c(
+      plot_paths,
+      saveGraphVisstat(
+        fileName = filename,
+        type = graphicsoutput,
+        fileDirectory = plotDirectory,
+        capture_env = capture_env
+      )
+    )
+    
+    openGraphCairo(type = graphicsoutput,fileDirectory = plotDirectory) 
+    
+    vis_sample_fact <- vis_numeric(
       samples,
       # y: dependent
       fact,
       # x: independent
       name_of_factor = name_of_factor,
       name_of_sample = name_of_sample,
-      conf.level = conf.level
+      conf.level = conf.level,
+      correlation = correlation
     )
     if (is.null(plotName)) {
       filename <-
@@ -520,97 +628,29 @@ visstat_core <- function(dataframe,
       filename <- paste(plotName)
     }
     
-    
-    
-    
     plot_paths <- c(plot_paths, saveGraphVisstat(fileName = filename,
-                     type = graphicsoutput,
-                     fileDirectory = plotDirectory))
-  }
-  
-  # D) more than two comparisons-----
-  # A) sample is numeric or integer: ANOVA or Kruskal/Wallis
-  
-  # excellent tutorial
-  # https://www.scribbr.com/statistics/anova-in-r/
-  
-  
-  if (typefactor == "factor" &&
-      (typesample == "integer" | typesample == "numeric") &&
-      nlevels(fact) > 2) {
-    visanova <- vis_anova_assumptions(
-      samples,
-      fact,
-      conf.level = conf.level,
-      samplename = varsample,
-      factorname = varfactor
-    )
-    
-    
-    if (visanova$shapiro_test$p.value > alpha |
-        visanova$ad_test$p.value > alpha) {
-      openGraphCairo(type = graphicsoutput, fileDirectory = plotDirectory)
-      
-      vis_sample_fact <- vis_anova(
-        samples,
-        fact,
-        samplename = varsample,
-        factorname = varfactor,
-        conf.level = conf.level
-      )
-      
-      
-      if (is.null(plotName)) {
-        filename <-
-          paste("anova_", name_of_sample, "_", name_of_factor, sep = "")
-      } else {
-        filename <- paste(plotName)
-      }
-      
-      
-      plot_paths <- c(plot_paths, saveGraphVisstat(fileName = filename,
-                       type = graphicsoutput,
-                       fileDirectory = plotDirectory))
-      
-      
-      
-      
-      # if p -values of both Shapiro-Wilk and Kruskall-Wallis-Test are smaller than 0.05, Kruskall-Wallis-Test
-    } else {
-      openGraphCairo(type = graphicsoutput, fileDirectory = plotDirectory)
-      
-      vis_sample_fact <- vis_Kruskal_Wallis_clusters(
-        samples,
-        fact,
-        conf.level = conf.level,
-        samplename = varsample,
-        factorname = varfactor,
-        cex = 1,
-        notch = F
-      )
-      
-      if (is.null(plotName)) {
-        filename <-
-          paste("kruskal_", name_of_sample, "_", name_of_factor, sep = "")
-      } else {
-        filename <- paste(plotName)
-      }
-      
-      
-      plot_paths <- c(plot_paths, saveGraphVisstat(fileName = filename,
-                       type = graphicsoutput,
-                       fileDirectory = plotDirectory))
-    }
+                                                 type = graphicsoutput,
+                                                 fileDirectory = plotDirectory,capture_env = capture_env))
   }
   
   
   
   # At the very end:
   attr(vis_sample_fact, "plot_paths") <- plot_paths
+  attr(vis_sample_fact, "captured_plots") <- capture_env$captured_plots
   class(vis_sample_fact) <- "visstat"
   
+  # FORCE ALL CAIRO OPERATIONS TO COMPLETE
+  if (!is.null(graphicsoutput)) {
+    while (!is.null(dev.list())) {
+      dev.off()
+    }
+  }
+  
+  if (!exists("vis_sample_fact") || is.null(vis_sample_fact)) {
+    vis_sample_fact <- list(error = "Analysis completed but no results were generated")
+  }
+  
   return(invisible(vis_sample_fact))
-  
-  
 }
 # End of visstat_core function -------

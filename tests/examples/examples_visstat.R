@@ -1,110 +1,41 @@
-## Examples------
+library(visStatistics)
+
+# Examples------
 while (!is.null(dev.list())) {
   dev.off()
 }
-library(visStatistics)
-options(warn = 0) # for debugging also warnings
-# only while developing, comment  when installed from CRAN
-# library(nortest)
-# library(vcd)
-# library(multcompView)
-# library(Cairo)
 
-# specify directory where plots will be stored. Without definition of plotDirectory: current working directory
+
+options(warn = 0) # for debugging also warnings
 filedir <- tempdir()
 
-# If graphicsoutput parameter is set, all plots are stored in the directory specified in the parameter plotDirectory.
-# Default directory of plotDirectory is the working directory.
-# Graphical output is named following the naming convention
-# "statisticalTestName_varsample_varfactor.graphicsoutput"
-#
-linear_regression_trees <- visstat(trees, "Girth", "Height")
-linear_regression_trees <- visstat(trees,
-  "Girth",
-  "Height",
-  graphicsoutput = "png",
-  plotDirectory = filedir
-)
-linear_regression_trees <- visstat(
-  trees,
-  "Girth",
-  "Height",
-  graphicsoutput = "pdf",
-  plotName = "hugo",
-  plotDirectory = filedir
-)
-linear_regression_trees <- visstat(
-  trees,
-  "Girth",
-  "Height",
-  graphicsoutput = "svg", ,
-  plotName = "dante",
-  plotDirectory = filedir
-)
-# display stats of linear regression
-linear_regression_trees
-
-# Welch two sample t.test: mtcars data set ----
-mtcars$am <- as.factor(mtcars$am)
-welch_cars <- visstat(mtcars, "mpg", "am")
-# store graphical output in different formats in directory defined in argument plotDirectory
-welch_cars <- visstat(
-  mtcars,
-  "mpg",
-  "am",
-  graphicsoutput = "png",
-  plotName = "hans",
-  plotDirectory = filedir
-)
-# standard naming convention
-welch_cars <- visstat(mtcars,
-  "mpg",
-  "am",
-  graphicsoutput = "pdf",
-  plotDirectory = filedir
-)
-
-# ANOVA and oneway.test -----
-anova_npk <- visstat(npk, "yield", "block")
-anova_npk # print out results
+# Student's t-test (equal variances, two groups)----
+ttest = visstat(sleep$group, sleep$extra)
+tvalue <- unname(ttest[[3]]$statistic)
+# Show equivalance of student's t-test to aov approach-----
+aov_sleep <- aov(extra ~ group, data = sleep)
+summary_aov <- summary(aov_sleep)
+F_anova <- (summary_aov[[1]][["F value"]][1])
+stopifnot(all.equal(tvalue^2, F_anova))
+# Show equivalance of student's t-test to lm approach---
+# Extract t - statistics
+lm_sleep <- lm(extra ~ group, data = sleep)
+summary_lm <- summary(lm_sleep)
+abst = (summary_lm$coefficients[2, 3])
+stopifnot(all.equal(abst, abs(tvalue)))
+beta1 = summary_lm$coefficients[2, 1]
+# Check group means
+mean1 = mean(sleep$extra[sleep$group == 1])
+mean2 = mean(sleep$extra[sleep$group == 2])
+stopifnot(all.equal(beta1, abs(mean2 - mean1)))
 
 
-# Kruskal-Wallis test: iris----
-visstat(iris, "Petal.Width", "Species")
-visstat(
-  iris,
-  "Petal.Width",
-  "Species",
-  graphicsoutput = "pdf",
-  plotDirectory = filedir
-)
-visstat(
-  iris,
-  "Petal.Width",
-  "Species",
-  graphicsoutput = "pdf",
-  plotName = "iris_kruskal",
-  plotDirectory = filedir
-)
+
+# Welch's t-test (unequal variances, two groups)----
+visstat(mtcars$am, mtcars$mpg)
 
 
-# Welch two sample t.test: InsectSprays ----
-# select sprays A and B
-InsectSpraysAB <- InsectSprays[which(InsectSprays$spray == "A" |
-  InsectSprays$spray == "B"), ]
-InsectSpraysAB$spray <- factor(InsectSpraysAB$spray)
-# Welcht-t-Test
-visstat(InsectSpraysAB, "count", "spray") # plots not saved
-visstat(
-  InsectSpraysAB,
-  "count",
-  "spray",
-  graphicsoutput = "png",
-  plotName = "insect_count_spray",
-  plotDirectory = filedir
-)
-
-# Wilcoxon
+# Wilcoxon-----
 grades_gender <- data.frame(
   Sex = as.factor(c(rep("Girl", 20), rep("Boy", 20))),
   Grade = c(
@@ -150,40 +81,143 @@ grades_gender <- data.frame(
     15.6
   )
 )
-visstat(grades_gender, "Grade", "Sex")
+visstat(grades_gender$Sex, grades_gender$Grade)
+
+# Fisher's ANOVA (equal variances, >2 groups)
+visstat(PlantGrowth$group, PlantGrowth$weight)
+
+
+# Welch ANOVA 1 -----
+set.seed(1)
+welch_anova_data <- data.frame(group = factor(rep(c("A", "B", "C"), each = 20)),
+                               value = c(
+                                 rnorm(20, mean = 50, sd = 5),
+                                 rnorm(20, mean = 55, sd = 10),
+                                 rnorm(20, mean = 60, sd = 15)
+                               ))
+welch_annova = visstat(welch_anova_data$group, welch_anova_data$value)
+
+set.seed(123)
+# Welch ANOVA  with 10 groups  -----
+# 
+# Create data with 10 groups
+groups_10 <- data.frame(
+  response = c(
+    rnorm(15, mean = 10, sd = 2),  # Group 1
+    rnorm(18, mean = 11, sd = 2),  # Group 2
+    rnorm(22, mean = 12, sd = 2),  # Group 3
+    rnorm(19, mean = 13, sd = 2),  # Group 4
+    rnorm(21, mean = 14, sd = 2),  # Group 5
+    rnorm(20, mean = 12, sd = 2),  # Group 6
+    rnorm(19, mean = 11, sd = 2),  # Group 7
+    rnorm(18, mean = 13, sd = 2),  # Group 8
+    rnorm(22, mean = 12, sd = 2),  # Group 9
+    rnorm(21, mean = 14, sd = 2)   # Group 10
+  ),
+  group = factor(rep(paste0("G", 1:10), times = c(15, 18, 22, 19, 21, 20, 19, 18, 22, 21)))
+)
+
+
+
+result_10 <- visstat(groups_10, "response", "group")
+
+
+# Kruskal-Wallis test: iris----
+iris_data = visstat(iris$Species, iris$Petal.Width)
+
+iris_data_stored = visstat(
+  iris$Species,
+  iris$Petal.Width,
+  graphicsoutput = "pdf",
+  plotName = "iris_kruskal",
+  plotDirectory = filedir
+)
+
+# Linear regression: trees data set  ----
+dev.off()
+linear_regression_trees <- visstat(trees$Girth, trees$Volume,conf.level = 0.99)
+
+plot(linear_regression_trees, which = 1) # replays assumption plot
+plot(linear_regression_trees, which = 2)
+
+# Spearman-correlation----
+result_swiss1 <- visstat(swiss$Education,
+                         swiss$Fertility, correlation = TRUE)
+# Kendall-correlation----
+set.seed(42)
+n <- 150
+# Negative monotone association: higher alcohol -> lower academic performance
+xs <- sample(1:5, n, replace = TRUE)
+ys <- pmin(5, pmax(1, (6 - xs) + sample(-1:1, n, replace = TRUE)))
+likert_levels  <- c("never", "rarely", "sometimes", "often", "always")
+likert_levels2 <- c("poor", "fair", "ok", "good", "great")
+alcohol     <- ordered(likert_levels[xs],  levels = likert_levels)
+performance <- ordered(likert_levels2[ys], levels = likert_levels2)
+kendall_result <- visstat(performance, alcohol, correlation = TRUE)
 
 
 # Chi squared, mosaic plots with HairEyeColor----
 # HairEyeColor data set: Pearsons Chi squared, mosaic plot with Pearson's residuals
 HairEyeColorMale <- counts_to_cases(as.data.frame(HairEyeColor[, , 1]))
-visstat(HairEyeColorMale, "Hair", "Eye")
+visstat(HairEyeColorMale$Eye, HairEyeColorMale$Hair)
 HairEyeColorMaleFisher <- HairEyeColor[, , 1]
 # replace cells to smaller values to enforce Cochran's rule
 HairEyeColorMaleFisher[HairEyeColorMaleFisher < 10] <- 4
 HairEyeColorMaleFisher <- counts_to_cases(as.data.frame(HairEyeColorMaleFisher))
-res_chi <- visstat(HairEyeColorMaleFisher, "Hair", "Eye") # test statistics stored in res_chi
+
 res_chi <- visstat(
-  HairEyeColorMaleFisher,
-  "Hair",
-  "Eye",
-  graphicsoutput = "png",
-  plotDirectory = filedir
+  HairEyeColorMaleFisher$Eye,
+  HairEyeColorMaleFisher$Hair
 ) # stores two graphics outputs
 
-# 2x2 contingency tables----
+# Fisher-test 2x2 contingency tables----
 HairEyeColorMaleFisher <- HairEyeColor[, , 1]
 # slicing out a 2 x2 contingency table
 blackBrownHazelGreen <- HairEyeColorMaleFisher[1:2, 3:4]
-fishertest <- blackBrownHazelGreen
+
+
 blackBrownHazelGreen <- counts_to_cases(as.data.frame(blackBrownHazelGreen))
 fisher_stats <- visstat(blackBrownHazelGreen, "Hair", "Eye")
-fisher_stats
+
+# Fisher-test 2x2: tea-tasting example (Fisher 1935)
+# Small cell counts -> Cochran violated -> exact Fisher -> OR and CI in output
+tea <- data.frame(
+  poured  = as.factor(c(rep("milk_first", 8), rep("tea_first", 8))),
+  correct = as.factor(c(rep("yes", 7), rep("no", 1), rep("yes", 1), rep("no", 7)))
+)
+tea_stats <- visstat(tea$poured, tea$correct)
+tea_stats$estimate   # odds ratio
+tea_stats$conf.int   # 95% CI
 
 
-# remove output plots from directory filedir----
-# graphicaltypes=c(".png", ".pdf", ".svg", ".ps")
-# for (i in graphicaltypes) {
-#   plotname=dir(filedir,pattern=i)
-#  print(file.path(filedir,plotname))
-#   file.remove(file.path(filedir,plotname))
-# }
+# The visstat-methods -------
+summary(iris_data_stored)
+print(iris_data_stored)
+plot(iris_data_stored) #file paths to plots
+plot(iris_data, which = 1) #replay plot 1
+
+
+# Replay plots  or file paths of stored graphics------
+
+plot(fisher_stats, which = 1) # column  plot 
+
+
+# Saving the graphical output to a user specified plotDirectory in user specified graphicsouput format ----
+linear_regression_trees_paths <- visstat(
+  trees$Height,
+  trees$Girth,
+  graphicsoutput = "svg",
+  plotName = "trees",
+  plotDirectory = filedir
+)
+
+
+# Show all graphics  of type ".png", ".pdf", ".svg", ".ps" in filedir=tempdir()-----
+graphicaltypes <- c(".png", ".pdf", ".svg", ".ps")
+for (i in graphicaltypes) {
+  plotname <- dir(filedir, pattern = i)
+  print(file.path(filedir, plotname))
+  # file.remove(file.path(filedir, plotname)) # removes all files of type ".png", ".pdf", ".svg", ".ps" in filedir=tempdir()-
+}
+dev.off()
+
