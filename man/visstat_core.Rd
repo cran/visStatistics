@@ -12,22 +12,24 @@ visstat_core(
   correlation = FALSE,
   numbers = TRUE,
   minpercent = 0.05,
+  group_test = NULL,
   graphicsoutput = NULL,
   plotName = NULL,
-  plotDirectory = getwd()
+  plotDirectory = getwd(),
+  plot_args = list()
 )
 }
 \arguments{
 \item{dataframe}{\code{data.frame} with at least two columns.}
 
-\item{varsample}{\code{character} string matching a column name in 
-\code{dataframe}. Interpreted as the response if the referenced column is 
-of class \code{numeric} or \code{integer} and the column named by 
+\item{varsample}{\code{character} string matching a column name in
+\code{dataframe}. Interpreted as the response if the referenced column is
+of class \code{numeric} or \code{integer} and the column named by
 \code{varfactor} is of class \code{factor}.}
 
-\item{varfactor}{\code{character} string matching a column name in 
-\code{dataframe}. Interpreted as the grouping variable if the referenced 
-column is of class \code{factor} and the column named by \code{varsample} 
+\item{varfactor}{\code{character} string matching a column name in
+\code{dataframe}. Interpreted as the grouping variable if the referenced
+column is of class \code{factor} and the column named by \code{varsample}
 is of class \code{numeric} or \code{integer}.}
 
 \item{conf.level}{Confidence level}
@@ -43,9 +45,16 @@ plots.}
 \item{minpercent}{number between 0 and 1 indicating minimal fraction of total
 count data of a category to be displayed    in mosaic count plots.}
 
-\item{graphicsoutput}{saves plot(s) of type "png",  "jpg", "tiff" or  "bmp"
-in directory specified in \code{plotDirectory}. If graphicsoutput=NULL, no
-plots are saved.}
+\item{group_test}{Optional character. For Route 1 only, \code{NULL} keeps the
+default assumption gates, \code{"welch"} forces Welch-type mean tests, but
+still displays the assumption-diagnostic plot and warns when residual
+normality is rejected, whereas \code{"rank"} forces Wilcoxon/Kruskal-Wallis
+rank tests without assessing the assumptions.}
+
+\item{graphicsoutput}{saves plot(s) of type "png", "jpeg", "pdf", "svg", "ps"
+or "tiff" in directory specified in \code{plotDirectory}. If
+graphicsoutput=NULL, no plots are saved. Any other value is not supported by
+\code{Cairo()}: it triggers a warning and no file is written.}
 
 \item{plotName}{graphical output is stored following the naming convention
 "plotName.graphicsoutput" in \code{plotDirectory}. Without specifying this
@@ -54,61 +63,60 @@ parameter, plotName is automatically generated following the convention
 
 \item{plotDirectory}{specifies directory, where generated plots are stored.
 Default is current working directory.}
+
+\item{plot_args}{Optional named list of base graphics parameters.}
 }
 \value{
-An object of class \code{"visstat"} containing the results of 
+An object of class \code{"visstat"} containing the results of
 the automatically selected statistical test. The specific contents depend on
  which test was performed.
 Additionally, the returned object includes two attributes:
 \itemize{
-  \item \code{plot_paths}: Character vector of file paths where plots were 
+  \item \code{plot_paths}: Character vector of file paths where plots were
     saved (if \code{graphicsoutput} was specified)
-  \item \code{captured_plots}: List of captured plot objects for programmatic 
+  \item \code{captured_plots}: List of captured plot objects for programmatic
     access
 }
 }
 \description{
-\code{visstat_core()} provides automated selection and visualization 
-of a statistical hypothesis test between a two vectors in
-a given \code{data.frame} named \code{dataframe} based on the data's type, 
-distribution, sample size, and the
-specified \code{conf.level}. \code{visstat_core()} is called by the main
- wrapper function \code{visstat()}.
-\code{varsample} and \code{varfactor} are \code{character}
-strings corresponding to the column names of the chosen vectors in \code{dataframe}. 
-These vectors must be of type \code{integer}, \code{numeric} or \code{factor}.
-The automatically generated output figures
-illustrate the selected statistical hypothesis test, display the main test
-statistics, and include assumption checks and post hoc comparisons when
-applicable. The primary test results are returned as a list object.
+\code{visstat_core()} implements the decision tree used by
+\code{\link{visstat}}. It receives a \code{data.frame} and two column names,
+determines the corresponding analysis route, creates the diagnostic and
+result plots, and returns the selected test results as a \code{visstat}
+object.
 }
 \details{
-The decision logic for selecting a statistical test is described below.
-For more details, please refer to the package's \code{vignette("visStatistics")}.
-Throughout, data of class \code{numeric} or \code{integer} are referred to as
-numeric, while data of class \code{factor} are referred to as categorical.
-The significance level \code{alpha} is defined as one minus the confidence
-level, given by the argument \code{conf.level}. Assumptions of normality and
-homoscedasticity are considered met when the corresponding test yields a
-p-value greater than \code{alpha = 1 - conf.level}.
-The choice of statistical tests performed by \code{visstat_core()} depends on
-whether the data are numeric or categorical, the number of levels in the
-categorical variable, the distribution of the data, and the chosen
-\code{conf.level}. The function prioritises interpretable visual output and
-tests that remain valid under their assumptions, following the logic below:
+The decision logic is organised into four routes. Route 1 handles a
+numeric response with a categorical predictor. By default, Route 1 uses
+residual-based test selection: Shapiro--Wilk on model residuals gates
+mean-based versus rank-based analysis, and Levene gates equal-variance
+versus Welch-type mean tests inside the mean branch. Above 5000
+observations, where \code{shapiro.test()} is undefined, the
+Anderson--Darling test takes over as the residual-normality gate.
+Alternatively,
+\code{group_test = "welch"} forces Welch-type mean tests, and
+\code{group_test = "rank"} forces Wilcoxon/Kruskal--Wallis tests.
 
-(1) When the response is numerical and the predictor is categorical, tests of
-central tendencies are performed. For the decision logic, please refer to the 
-packages vignette \code{vignette("visStatistics")}
+Route 2 handles ordered responses with categorical predictors by converting
+the ordered response to integer level codes and applying Wilcoxon or
+Kruskal--Wallis tests. Route 3 handles two numeric variables by fitting
+\code{lm()} by default, or Spearman rank correlation when
+\code{correlation = TRUE}. Route 4 handles two unordered factors with
+Pearson's \eqn{\chi^2} test or Fisher's exact test, depending on expected
+counts. If both variables are ordered and \code{correlation = TRUE},
+Kendall's \eqn{\tau_b} is used.
 
-(2): When both the response and predictor are numerical, a linear model
-\code{lm()} is fitted, with residual diagnostics and a confidence band plot.
+The significance level \code{alpha} is defined as \code{1 - conf.level}.
+Assumption tests are interpreted relative to this threshold.
 
-(3): When both variables are categorical, \code{visstat_core()} uses
-\code{chisq.test()} or \code{fisher.test()} depending on expected counts,
-following Cochran's rule (Cochran (1954) <doi:10.2307/3001666>).
+Under the default \code{group_test = NULL}, Route 1 issues a warning when the
+group sizes are unbalanced, the largest group standard deviations occur in the
+smallest groups, and the route selected is either the equal-variance test or a
+rank-based test. In that configuration those two routes can exceed the nominal
+significance level, whereas a selected Welch test does not and is therefore
+not flagged; see the Route 1 simulations in \code{vignette("visStatistics")}.
 
-Implemented main tests: 
+Implemented main tests:
 
 \code{t.test()}, \code{wilcox.test()}, \code{aov()},
 \code{oneway.test()}, \code{lm()}, \code{kruskal.test()},
@@ -117,17 +125,32 @@ Implemented main tests:
 Implemented tests for assumptions:
 \itemize{
   \item Normality: \code{shapiro.test()} and \code{ad.test()}
-  \item Heteroscedasticity: \code{bartlett.test()} and \code{levene.test()} and \code{bp_test()}
+  \item Heteroscedasticity: \code{bartlett.test()} and \code{levene.test()} and \code{bp.test()}
 }
+
+For the general linear model the Shapiro-Wilk, Anderson-Darling, Levene and
+Bartlett tests are applied to the internally studentised residuals
+r_i = e_i / (SE_res sqrt(1 - h_i)), which remove the leverage-dependent
+variance of the raw residuals (Var(e_i) = sigma^2 (1 - h_i)).
 
 Implemented post hoc tests:
 \itemize{
-  \item \code{TukeyHSD()} for \code{aov()} 
-  \item \code{games.howell} for  \code{oneway.test()}
+  \item \code{TukeyHSD()} for \code{aov()}
+  \item \code{games.howell()} for  \code{oneway.test()}
   \item \code{pairwise.wilcox.test()} for \code{kruskal.test()}
 }
+
+The Q-Q envelopes in the assumption diagnostics are simulated (see
+\code{\link{qq_lm_envelope}}). The number of simulated refits is taken from
+the option \code{visStatistics.qq_nsim} and defaults to 5000. As
+\code{visstat_core()} has no corresponding argument, this option is the only
+way to change it here; lower it to trade precision for speed, for instance
+\code{options(visStatistics.qq_nsim = 1000L)}.
 }
 \examples{
+old_qq_nsim <- getOption("visStatistics.qq_nsim")
+options(visStatistics.qq_nsim = 100L)
+
 # Welch Two Sample t-test (t.test())
 visstat_core(mtcars, "mpg", "am")
 
@@ -166,11 +189,14 @@ blackBrownHazelGreen <- HairEyeColorMaleFisher[1:2, 3:4]
 blackBrownHazelGreen <- counts_to_cases(as.data.frame(blackBrownHazelGreen))
 fisher_stats <- visstat_core(blackBrownHazelGreen, "Hair", "Eye")
 
+options(visStatistics.qq_nsim = old_qq_nsim)
+
 }
 \seealso{
 The package's vignette
-\code{vignette("visStatistics")} for a description of the 
-decision logic, illustrated with numerous examples. The package is accompanied 
+\code{vignette("visStatistics")} for a description of the
+decision logic, illustrated with numerous examples. The package is accompanied
 by its webpage
-\url{https://shhschilling.github.io/visStatistics/}. The main function \code{\link{visstat}} for a detailed description of the return value.
+\url{https://shhschilling.github.io/visStatistics/}. The main function
+\code{\link{visstat}} provides a detailed description of the return value.
 }

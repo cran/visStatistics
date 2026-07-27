@@ -18,49 +18,54 @@ An object of class \code{"htest"} with components:
 \item{data.name}{a character string giving the name of the model.}
 }
 \description{
-Performs the Breusch-Pagan test for heteroscedasticity in 
-linear regression models. Tests the null hypothesis that the error variance 
-is constant (homoscedasticity) against the alternative that the error 
+Performs the Breusch-Pagan test for heteroscedasticity in
+linear regression models. Tests the null hypothesis that the error variance
+is constant (homoscedasticity) against the alternative that the error
 variance depends on the fitted values.
 }
 \details{
-The Breusch-Pagan test regresses the squared standardized residuals on 
-the fitted values. The test statistic is:
+Implements the Koenker variant of the Breusch-Pagan test, which
+regresses the squared raw residuals on the fitted values. The test
+statistic is:
 
 \deqn{BP = n \cdot R^2}
 
 where:
 \itemize{
   \item \eqn{n} = sample size
-  \item \eqn{R^2} = coefficient of determination from auxiliary regression of 
+  \item \eqn{R^2} = coefficient of determination from auxiliary regression of
         \eqn{e_i^2} on \eqn{\hat{y}_i}
 }
 
-Under the null hypothesis of homoscedasticity, the test statistic follows 
-a chi-squared distribution: \eqn{BP \sim \chi^2(p-1)} where \eqn{p} is the 
+Under the null hypothesis of homoscedasticity, the test statistic follows
+a chi-squared distribution: \eqn{BP \sim \chi^2(k-1)} where \eqn{k} is the
 number of parameters in the model (including intercept).
 
-Large values of the test statistic (small p-values) provide evidence against 
+Large values of the test statistic (small p-values) provide evidence against
 homoscedasticity.
 }
 \examples{
 # Example with homoscedastic errors
 set.seed(123)
 x <- runif(100)
-y <- 2 + 3*x + rnorm(100, sd = 1)
+y <- 2 + 3 * x + rnorm(100, sd = 1)
 model1 <- lm(y ~ x)
-bp.test(model1)  # Should not reject (p > 0.05)
+bp.test(model1) # Should not reject (p > 0.05)
 
 # Example with heteroscedastic errors (variance increases with x)
 set.seed(456)
 x <- runif(100)
-y <- 2 + 3 *x + rnorm(100, sd = 0.5 + 2*x)
+y <- 2 + 3 * x + rnorm(100, sd = 0.5 + 2 * x)
 model2 <- lm(y ~ x)
-bp.test(model2)  # Should reject (p < 0.05)
+bp.test(model2) # Should reject (p < 0.05)
 
 }
 \references{
-Breusch, T. S., and Pagan, A. R. (1979). A simple test for heteroscedasticity 
+Breusch, T. S., and Pagan, A. R. (1979). A simple test for heteroscedasticity
 and random coefficient variation. Econometrica, 47(5), 1287-1294.
 DOI: 10.2307/1911963
+
+Koenker, R. (1981). A note on studentizing a test for heteroscedasticity.
+Journal of Econometrics, 17(1), 107-112.
+DOI: 10.1016/0304-4076(81)90062-2
 }

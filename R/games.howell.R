@@ -1,8 +1,8 @@
 #' Games-Howell Post-Hoc Test
 #'
-#' Performs pairwise comparisons using the Games-Howell test, which does not
-#' assume equal variances or equal sample sizes. This is the appropriate
-#' post-hoc test to use after a significant Welch's ANOVA.
+#' Performs pairwise comparisons using the package's own implementation of a
+#' Games-Howell-type unequal-variance post-hoc procedure. It does not assume
+#' equal variances or equal sample sizes and is used after Welch's ANOVA.
 #'
 #' @param samples Numeric vector; the dependent variable.
 #' @param groups Factor or vector; the grouping variable.
@@ -24,52 +24,51 @@
 #' }
 #'
 #' @details
-#' The Games-Howell test uses the Welch-Satterthwaite approximation for
-#' degrees of freedom and does not pool variances. P-values are adjusted
-#' using the Holm method to control family-wise error rate.
+#' The implementation uses the Welch-Satterthwaite approximation for degrees
+#' of freedom and does not pool variances. P-values are adjusted using the
+#' Holm method to control family-wise error rate.
 #'
 #' @examples
 #' # Convert dose to factor
 #' ToothGrowth$dose <- as.factor(ToothGrowth$dose)
-#' 
+#'
 #' # Perform Games-Howell test
 #' result <- games.howell(ToothGrowth$len, ToothGrowth$dose)
 #' print(result)
 #'
 #' @export
 games.howell <- function(samples, groups, conf.level = 0.95) {
-  
   # Input validation
   if (!is.numeric(samples)) {
     stop("samples must be numeric")
   }
-  
+
   if (length(samples) != length(groups)) {
     stop("samples and groups must have the same length")
   }
-  
+
   # Clean data
   complete_cases <- complete.cases(samples, groups)
   samples <- samples[complete_cases]
   groups <- as.factor(groups[complete_cases])
-  
+
   # Check minimum requirements
   group_levels <- levels(groups)
   k <- length(group_levels)
-  
+
   if (k < 2) {
     stop("At least 2 groups required")
   }
-  
+
   # Calculate group statistics
   n <- tapply(samples, groups, length)
   means <- tapply(samples, groups, mean)
   vars <- tapply(samples, groups, var)
-  
+
   # Generate all pairwise comparisons
   comparisons <- combn(k, 2)
   n_comparisons <- ncol(comparisons)
-  
+
   # Initialize results
   results <- data.frame(
     group1 = character(n_comparisons),
@@ -83,38 +82,39 @@ games.howell <- function(samples, groups, conf.level = 0.95) {
     ci_upper = numeric(n_comparisons),
     stringsAsFactors = FALSE
   )
-  
+
   # Perform pairwise comparisons
   for (i in 1:n_comparisons) {
     g1_idx <- comparisons[1, i]
     g2_idx <- comparisons[2, i]
-    
+
     g1 <- group_levels[g1_idx]
     g2 <- group_levels[g2_idx]
-    
+
     # Mean difference
     mean_diff <- means[g1] - means[g2]
-    
+
     # Standard error (Welch formula - no pooling)
-    se <- sqrt(vars[g1]/n[g1] + vars[g2]/n[g2])
-    
+    se <- sqrt(vars[g1] / n[g1] + vars[g2] / n[g2])
+
     # Degrees of freedom (Welch-Satterthwaite approximation)
-    df <- (vars[g1]/n[g1] + vars[g2]/n[g2])^2 / 
-      ((vars[g1]/n[g1])^2 / (n[g1] - 1) + 
-         (vars[g2]/n[g2])^2 / (n[g2] - 1))
-    
+    df_num <- (vars[g1] / n[g1] + vars[g2] / n[g2])^2
+    df_den <- (vars[g1] / n[g1])^2 / (n[g1] - 1) +
+      (vars[g2] / n[g2])^2 / (n[g2] - 1)
+    df <- df_num / df_den
+
     # t-statistic
     t_stat <- mean_diff / se
-    
+
     # Two-tailed p-value
     p_value <- 2 * pt(abs(t_stat), df, lower.tail = FALSE)
-    
+
     # Confidence interval
     alpha <- 1 - conf.level
-    t_crit <- qt(1 - alpha/2, df)
+    t_crit <- qt(1 - alpha / 2, df)
     ci_lower <- mean_diff - t_crit * se
     ci_upper <- mean_diff + t_crit * se
-    
+
     # Store results
     results[i, ] <- list(
       group1 = g1,
@@ -128,16 +128,16 @@ games.howell <- function(samples, groups, conf.level = 0.95) {
       ci_upper = ci_upper
     )
   }
-  
+
   # Adjust p-values using Holm method
   results$p_adj <- p.adjust(results$p_value, method = "holm")
-  
+
   # Add significance indicator
   results$significant <- results$p_adj < (1 - conf.level)
-  
+
   # Set class for potential print method
   class(results) <- c("games.howell", "data.frame")
-  
+
   return(results)
 }
 
@@ -145,7 +145,7 @@ games.howell <- function(samples, groups, conf.level = 0.95) {
 print.games.howell <- function(x, digits = 4, ...) {
   cat("\nGames-Howell Post-Hoc Test\n")
   cat("==========================\n\n")
-  
+
   # Format output
   output <- x
   output$mean_diff <- round(output$mean_diff, digits)
@@ -156,19 +156,22 @@ print.games.howell <- function(x, digits = 4, ...) {
   output$p_adj <- format.pval(output$p_adj, digits = digits)
   output$ci_lower <- round(output$ci_lower, digits)
   output$ci_upper <- round(output$ci_upper, digits)
-  
+
   # Add significance stars
   output$sig <- ifelse(x$p_adj < 0.001, "***",
-                       ifelse(x$p_adj < 0.01, "**",
-                              ifelse(x$p_adj < 0.05, "*",
-                                     ifelse(x$p_adj < 0.1, ".", ""))))
-  
+    ifelse(x$p_adj < 0.01, "**",
+      ifelse(x$p_adj < 0.05, "*",
+        ifelse(x$p_adj < 0.1, ".", "")
+      )
+    )
+  )
+
   print(as.data.frame(output), row.names = FALSE, ...)
-  
+
   cat("\n---\n")
   cat("Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1\n")
   cat("P-values adjusted using Holm method\n\n")
-  
+
   invisible(x)
 }
 
@@ -189,35 +192,34 @@ print.games.howell <- function(x, digits = 4, ...) {
 #' letters <- gh_letters(result)
 #' print(letters)
 #'
-#' @export
+#' @noRd
 gh_letters <- function(x, alpha = 0.05) {
-  
   if (!inherits(x, "games.howell")) {
     stop("x must be a games.howell object")
   }
-  
+
   # Create a matrix of p-values for multcompView
   all_groups <- unique(c(x$group1, x$group2))
   k <- length(all_groups)
-  
+
   # Initialize p-value matrix
   p_matrix <- matrix(1, nrow = k, ncol = k)
   rownames(p_matrix) <- all_groups
   colnames(p_matrix) <- all_groups
-  
+
   # Fill in p-values
-  for (i in 1:nrow(x)) {
+  for (i in seq_len(nrow(x))) {
     g1 <- x$group1[i]
     g2 <- x$group2[i]
     p_matrix[g1, g2] <- x$p_adj[i]
     p_matrix[g2, g1] <- x$p_adj[i]
   }
-  
+
   # Convert to format for multcompView (TRUE = different)
   diff_matrix <- p_matrix < alpha
-  
+
   # Use multcompView to get compact letter display
   letters <- multcompView::multcompLetters(diff_matrix)$Letters
-  
+
   return(letters)
 }

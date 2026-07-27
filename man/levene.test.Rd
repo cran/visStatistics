@@ -2,7 +2,7 @@
 % Please edit documentation in R/levene.test.R
 \name{levene.test}
 \alias{levene.test}
-\title{Levene-Brown-Forsythe Test for Homogeneity of Variance (center = median)}
+\title{Mean-centred Levene Test for Homogeneity of Variance}
 \usage{
 levene.test(y, g, data = NULL)
 }
@@ -16,32 +16,32 @@ levene.test(y, g, data = NULL)
 \value{
 An object of class \code{"htest"} with components:
 \item{statistic}{the value of the F-statistic.}
-\item{parameter}{degrees of freedom: df1=k-1, 
+\item{parameter}{degrees of freedom: df1=k-1,
 df3=N-k, where k is the number of groups and N the total sample size }
 \item{p.value}{the p-value of the test.}
 \item{method}{a character string indicating the test performed.}
 \item{data.name}{a character string giving the name(s) of the data.}
 }
 \description{
-Performs Levene's test using the
- Brown-Forsythe modification (median-centred). 
- It tests the null hypothesis that all groups 
+Performs Levene's original mean-centred test.
+ It tests the null hypothesis that all groups
 have equal variances by testing whether the absolute deviations
- from group  medians are equal across groups
- The function reproduces the default behaviour of the 
- leveneTest(y,g,center=median,...) of the car-package.
+ from group means are equal across groups.
+ The function reproduces the behaviour of
+ leveneTest(y, g, center = mean, ...) of the car package.
 }
 \details{
-For each observation \eqn{y_{ij}} in group \eqn{i}, compute the absolute 
-deviation from the group median:
+For each observation \eqn{y_{ij}} in group \eqn{i}, compute the absolute
+deviation from the group mean:
 
-\deqn{z_{ij} = |y_{ij} - \tilde{y}_i|}
+\deqn{z_{ij} = |y_{ij} - \bar{y}_i|}
 
-where \eqn{\tilde{y}_i} is the median of group \eqn{i}.
+where \eqn{\bar{y}_i} is the mean of group \eqn{i}.
 
 The test statistic is the F-statistic from a one-way ANOVA on the \eqn{z_{ij}} values:
 
-\deqn{F = \frac{(N-k) \sum_{i=1}^{k} n_i (\bar{z}_i - \bar{z})^2}{(k-1) \sum_{i=1}^{k} \sum_{j=1}^{n_i} (z_{ij} - \bar{z}_i)^2}}
+\deqn{F = \frac{(N-k) \sum_{i=1}^{k} n_i (\bar{z}_i - \bar{z})^2}{
+(k-1) \sum_{i=1}^{k} \sum_{j=1}^{n_i} (z_{ij} - \bar{z}_i)^2}}
 
 where:
 \itemize{
@@ -52,7 +52,7 @@ where:
   \item \eqn{\bar{z}} = overall mean of all absolute deviations
 }
 
-Under the null hypothesis of equal variances, the test statistic follows 
+Under the null hypothesis of equal variances, the test statistic follows
 an F-distribution: \eqn{F \sim F(k-1, N-k)}.
 }
 \examples{
@@ -71,11 +71,9 @@ y_unequal <- c(rnorm(15, sd = 1), rnorm(15, sd = 5), rnorm(15, sd = 0.2))
 g_unequal <- factor(rep(c("A", "B", "C"), each = 15))
 levene.test(y_unequal, g_unequal)
 
-
-
 }
 \references{
-Brown, M. B., and Forsythe, A. B. (1974). Robust tests for the equality of
-variances. Journal of the American Statistical Association, 69(346), 364–367.
-DOI: 10.1080/01621459.1974.10482955
+Levene, H. (1960). Robust tests for equality of variances. In I. Olkin
+(Ed.), Contributions to Probability and Statistics (pp. 278-292).
+Stanford University Press.
 }
